@@ -1,0 +1,137 @@
+---
+interface Props {
+  current?: string;
+}
+
+const { current } = Astro.props;
+---
+
+<header class="site-header">
+  <div class="site-header__inner">
+    <a class="site-brand" href="/">GoRo<span>Deals</span></a>
+    <nav class="site-nav">
+      <a href="/" aria-current={current === 'catalogo' ? 'page' : undefined}>Catalogo</a>
+      <a href="/ofertas" aria-current={current === 'ofertas' ? 'page' : undefined}>Ofertas</a>
+    </nav>
+    <form class="search-form" method="get" action="/" role="search">
+      <input
+        type="search"
+        name="q"
+        placeholder="Buscar juego..."
+        aria-label="Buscar juego"
+        data-search-input
+      />
+      <select name="sort" aria-label="Orden" data-sort-select>
+        <option value="recent">Recientes</option>
+        <option value="quality">Calidad</option>
+        <option value="discount">Descuento</option>
+      </select>
+      <button type="submit">Buscar</button>
+    </form>
+
+    <div class="sync-panel" data-sync-panel>
+      <button type="button" class="btn btn--ghost" data-sync-trigger>Sincronizar</button>
+      <div class="sync-panel__secret hidden" data-sync-secret-wrap>
+        <label class="sync-panel__label" for="sync-secret">Secreto de administracion</label>
+        <input
+          type="password"
+          id="sync-secret"
+          data-sync-secret
+          placeholder="Secreto de administracion"
+          autocomplete="off"
+        />
+        <button type="button" data-sync-confirm>Enviar</button>
+      </div>
+      <p class="sync-panel__status" data-sync-status role="status"></p>
+    </div>
+  </div>
+</header>
+
+<script>
+  import {
+    clearStoredSecret,
+    formatSyncResult,
+    getStoredSecret,
+    storeSecret,
+    triggerRandomSync,
+  } from '../lib/sync';
+
+  const trigger = document.querySelector<HTMLButtonElement>('[data-sync-trigger]');
+  const secretWrap = document.querySelector<HTMLElement>('[data-sync-secret-wrap]');
+  const secretInput = document.querySelector<HTMLInputElement>('[data-sync-secret]');
+  const confirmButton = document.querySelector<HTMLButtonElement>('[data-sync-confirm]');
+  const status = document.querySelector<HTMLElement>('[data-sync-status]');
+
+  function setStatus(message: string, kind: 'idle' | 'busy' | 'ok' | 'error'): void {
+    if (!status) return;
+    status.textContent = message;
+    status.className = 'sync-panel__status';
+    if (kind !== 'idle') status.classList.add(`sync-panel__status--${kind}`);
+  }
+
+  async function runSync(secret: string): Promise<void> {
+    if (trigger) {
+      trigger.disabled = true;
+      trigger.textContent = 'Sincronizando...';
+    }
+    if (confirmButton) confirmButton.disabled = true;
+    setStatus('Sincronizando...', 'busy');
+
+    try {
+      const result = await triggerRandomSync(secret);
+      setStatus(formatSyncResult(result), 'ok');
+      if (secretWrap) secretWrap.classList.add('hidden');
+      // Notifica a la pagina actual para que vuelva a pedir los datos.
+      window.dispatchEvent(new CustomEvent('gorodeals:sync-complete', { detail: result }));
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Error desconocido.';
+      setStatus(message, 'error');
+      if (error instanceof Error && /403/.test(message)) {
+        // El secreto puede ser incorrecto o no estar configurado: se pide de nuevo.
+        if (secretInput) secretInput.value = '';
+        if (secretWrap) secretWrap.classList.remove('hidden');
+      }
+    } finally {
+      if (trigger) {
+        trigger.disabled = false;
+        trigger.textContent = 'Sincronizar';
+      }
+      if (confirmButton) confirmButton.disabled = false;
+    }
+  }
+
+  trigger?.addEventListener('click', () => {
+    const stored = getStoredSecret();
+    if (stored) {
+      void runSync(stored);
+      return;
+    }
+    if (secretWrap) secretWrap.classList.toggle('hidden');
+    if (secretInput) secretInput.focus();
+    setStatus('', 'idle');
+  });
+
+  confirmButton?.addEventListener('click', () => {
+    const secret = secretInput?.value.trim() ?? '';
+    if (!secret) {
+      setStatus('Introduce el secreto de administracion.', 'error');
+      return;
+    }
+    storeSecret(secret);
+    void runSync(secret);
+  });
+
+  secretInput?.addEventListener('keydown', (event) => {
+    if (event.key === 'Enter') {
+      event.preventDefault();
+      confirmButton?.click();
+    }
+  });
+
+  // Permite al usuario borrar el secreto de la sesion.
+  window.addEventListener('gorodeals:forget-secret', () => {
+    clearStoredSecret();
+    if (secretInput) secretInput.value = '';
+    setStatus('Secreto olvidado.', 'idle');
+  });
+</script>

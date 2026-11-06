@@ -1,0 +1,22 @@
+# Dependencias
+node_modules/
+
+# Compilacion
+dist/
+build/
+*.tsbuildinfo
+
+# Entorno y secretos
+.env
+.env.*
+!.env.example
+
+# Tests y cobertura
+coverage/
+.nyc_output/
+
+# Editor y sistema operativo
+.idea/
+.vscode/
+.DS_Store
+*.log

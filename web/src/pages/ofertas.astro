@@ -1,0 +1,57 @@
+---
+import Base from '../layouts/Base.astro';
+import GameCard from '../components/GameCard.astro';
+import PriceTag from '../components/PriceTag.astro';
+import ErrorState from '../components/ErrorState.astro';
+---
+
+<Base title="Ofertas - GoRoDeals" current="ofertas">
+  <h1 class="page-title">Ofertas destacadas</h1>
+  <p class="page-subtitle" data-results-info>Cargando ofertas...</p>
+
+  <div id="deals-state" data-deals-state></div>
+
+  <div class="card-grid" id="deals-grid" data-deals-grid></div>
+
+  <GameCard />
+  <PriceTag />
+  <ErrorState />
+</Base>
+
+<script>
+  import { getHottestDeals, describeError } from '../lib/api';
+  import { renderCardGrid, renderError, showLoading } from '../lib/render';
+
+  const grid = document.querySelector<HTMLElement>('[data-deals-grid]');
+  const state = document.querySelector<HTMLElement>('[data-deals-state]');
+  const info = document.querySelector<HTMLElement>('[data-results-info]');
+
+  async function load(): Promise<void> {
+    if (!grid || !state) return;
+    state.innerHTML = '';
+    showLoading(grid, 'Cargando ofertas...');
+    if (info) info.textContent = 'Cargando ofertas...';
+
+    try {
+      const data = await getHottestDeals(20);
+      renderCardGrid(grid, data.items);
+
+      if (data.items.length === 0) {
+        grid.innerHTML = '<div class="state">No hay ofertas disponibles ahora mismo.</div>';
+      }
+
+      if (info) info.textContent = `${data.items.length} ofertas ordenadas por deal score.`;
+    } catch (error) {
+      grid.innerHTML = '';
+      if (info) info.textContent = 'No se pudieron cargar las ofertas.';
+      renderError(state, describeError(error));
+    }
+  }
+
+  void load();
+
+  // Tras una sincronizacion se vuelve a pedir el listado de ofertas.
+  window.addEventListener('gorodeals:sync-complete', () => {
+    void load();
+  });
+</script>

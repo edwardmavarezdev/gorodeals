@@ -1,0 +1,348 @@
+---
+import Base from '../layouts/Base.astro';
+import ErrorState from '../components/ErrorState.astro';
+
+---
+
+<Base title="Ficha de juego - GoRoDeals" current="catalogo">
+  <div id="game-state" data-game-state></div>
+
+  <article class="game-detail" data-game-detail hidden>
+    <aside>
+      <div class="game-detail__cover" role="img" data-game-cover></div>
+      <div class="game-detail__meta">
+        <span class="badge badge--meta" data-game-metacritic></span>
+        <span class="badge" data-game-quality></span>
+        <span class="badge" data-game-release></span>
+      </div>
+      <div class="game-detail__meta">
+        <span class="badge" data-game-genres></span>
+        <span class="badge" data-game-platforms></span>
+      </div>
+    </aside>
+
+    <section>
+      <h1 class="page-title" data-game-title></h1>
+      <p class="page-subtitle" data-game-summary></p>
+      <p class="game-detail__description" data-game-description></p>
+    </section>
+  </article>
+
+  <section class="panel" data-offers-panel hidden>
+    <h2>Ofertas por tienda</h2>
+    <table class="offer-table">
+      <thead>
+        <tr>
+          <th>Tienda</th>
+          <th>Precio actual</th>
+          <th>Precio regular</th>
+          <th>Descuento</th>
+          <th>Minimo historico</th>
+          <th>Estado</th>
+          <th>Enlace</th>
+        </tr>
+      </thead>
+      <tbody data-offers-body></tbody>
+    </table>
+  </section>
+
+  <section class="panel" data-chart-panel hidden>
+    <h2>Historico de precios</h2>
+    <div class="chart-wrap"><canvas data-price-chart></canvas></div>
+  </section>
+
+  <section class="panel" data-franchise-panel hidden>
+    <h2>Ruta de la saga</h2>
+    <p class="page-subtitle" data-franchise-description></p>
+    <ol class="route-list" data-franchise-route></ol>
+  </section>
+
+  <ErrorState />
+</Base>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js" is:inline></script>
+
+<script>
+  import { getGame, describeError } from '../lib/api';
+  import type { GameDetailResponse, PriceHistoryPoint } from '../lib/api';
+  import { formatDate, formatPrice, renderError, setCover, showLoading } from '../lib/render';
+
+  const slug = new URLSearchParams(window.location.search).get('slug') ?? '';
+  const state = document.querySelector<HTMLElement>('[data-game-state]');
+  const detail = document.querySelector<HTMLElement>('[data-game-detail]');
+  const offersPanel = document.querySelector<HTMLElement>('[data-offers-panel]');
+  const offersBody = document.querySelector<HTMLElement>('[data-offers-body]');
+  const chartPanel = document.querySelector<HTMLElement>('[data-chart-panel]');
+  const franchisePanel = document.querySelector<HTMLElement>('[data-franchise-panel]');
+  const franchiseRoute = document.querySelector<HTMLElement>('[data-franchise-route]');
+
+  function text(selector: string, value: string): void {
+    const node = document.querySelector(selector);
+    if (node) node.textContent = value;
+  }
+
+  function renderOffers(data: GameDetailResponse): void {
+    if (!offersPanel || !offersBody) return;
+    offersBody.innerHTML = '';
+
+    if (data.offers.length === 0) {
+      offersPanel.hidden = false;
+      const row = document.createElement('tr');
+      const cell = document.createElement('td');
+      cell.colSpan = 7;
+      cell.textContent = 'No hay ofertas registradas para este juego.';
+      row.appendChild(cell);
+      offersBody.appendChild(row);
+      return;
+    }
+
+    for (const offer of data.offers) {
+      const row = document.createElement('tr');
+
+      const store = document.createElement('td');
+      store.textContent = offer.storeName;
+      row.appendChild(store);
+
+      const current = document.createElement('td');
+      current.textContent = formatPrice(offer.currentPrice, offer.currency);
+      row.appendChild(current);
+
+      const regular = document.createElement('td');
+      regular.textContent = formatPrice(offer.regularPrice, offer.currency);
+      row.appendChild(regular);
+
+      const discount = document.createElement('td');
+      discount.textContent = `-${offer.discountPercent}%`;
+      row.appendChild(discount);
+
+      const low = document.createElement('td');
+      low.textContent = formatPrice(offer.historicalLowPrice, offer.currency);
+      row.appendChild(low);
+
+      const available = document.createElement('td');
+      if (offer.isAvailable) {
+        available.textContent = 'Disponible';
+      } else {
+        available.textContent = 'No disponible';
+        available.className = 'unavailable';
+      }
+      row.appendChild(available);
+
+      const link = document.createElement('td');
+      const anchor = document.createElement('a');
+      anchor.href = offer.url;
+      anchor.textContent = 'Ver tienda';
+      anchor.target = '_blank';
+      anchor.rel = 'noopener noreferrer';
+      link.appendChild(anchor);
+      row.appendChild(link);
+
+      offersBody.appendChild(row);
+    }
+
+    offersPanel.hidden = false;
+  }
+
+  function renderChart(points: PriceHistoryPoint[]): void {
+    if (!chartPanel) return;
+    if (points.length === 0) {
+      chartPanel.hidden = false;
+      const wrap = chartPanel.querySelector('.chart-wrap');
+      if (wrap) {
+        wrap.innerHTML = '<div class="state">No hay datos de historico de precios.</div>';
+      }
+      return;
+    }
+
+    const sorted = [...points].sort(
+      (a, b) => new Date(a.recordedAt).getTime() - new Date(b.recordedAt).getTime(),
+    );
+
+    const chartGlobal = (
+      window as unknown as {
+        Chart?: {
+          new (
+            canvas: HTMLCanvasElement,
+            config: {
+              type: string;
+              data: unknown;
+              options: unknown;
+            },
+          ): unknown;
+          defaults: Record<string, unknown>;
+        };
+      }
+    ).Chart;
+    if (!chartGlobal) {
+      chartPanel.hidden = false;
+      const wrap = chartPanel.querySelector('.chart-wrap');
+      if (wrap) {
+        wrap.innerHTML =
+          '<div class="state">No se pudo cargar la libreria de graficas (Chart.js).</div>';
+      }
+      return;
+    }
+
+    const canvas = document.querySelector<HTMLCanvasElement>('[data-price-chart]');
+    if (!canvas) return;
+
+    const datasets = new Map<string, { points: PriceHistoryPoint[]; regular: number[] }>();
+    for (const point of sorted) {
+      const entry = datasets.get(point.storeName) ?? { points: [], regular: [] };
+      entry.points.push(point);
+      entry.regular.push(point.regularPrice);
+      datasets.set(point.storeName, entry);
+    }
+
+    const labels = sorted.map((point) => formatDate(point.recordedAt));
+
+    const chartData = {
+      labels,
+      datasets: Array.from(datasets.entries()).map(([storeName, entry]) => ({
+        label: storeName,
+        data: entry.points.map((point) => point.price),
+        regularData: entry.regular,
+        borderColor: '#7cf03d',
+        backgroundColor: 'rgba(124, 240, 61, 0.12)',
+        tension: 0.25,
+        fill: true,
+      })),
+    };
+
+    chartGlobal.defaults.color = '#8b98a9';
+    chartGlobal.defaults.borderColor = '#232c38';
+
+    new chartGlobal(canvas, {
+      type: 'line',
+      data: chartData,
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+          legend: { labels: { color: '#e6edf3' } },
+          tooltip: {
+            callbacks: {
+              label: (context: { dataset: { label?: string }; parsed: { y?: number | null } }) =>
+                `${context.dataset.label ?? ''}: ${context.parsed.y ?? ''}`,
+            },
+          },
+        },
+        scales: {
+          x: { ticks: { color: '#8b98a9' }, grid: { color: '#232c38' } },
+          y: { ticks: { color: '#8b98a9' }, grid: { color: '#232c38' } },
+        },
+      },
+    });
+
+    chartPanel.hidden = false;
+  }
+
+  function renderFranchise(data: GameDetailResponse): void {
+    const franchise = data.franchise;
+    if (!franchise || !franchisePanel || !franchiseRoute) return;
+
+    const description = document.querySelector<HTMLElement>('[data-franchise-description]');
+    if (description) description.textContent = franchise.description ?? '';
+
+    franchiseRoute.innerHTML = '';
+    for (const entry of franchise.route) {
+      const item = document.createElement('li');
+      item.className = 'route-item';
+
+      const position = document.createElement('span');
+      position.className = 'route-item__position';
+      position.textContent = String(entry.position);
+      item.appendChild(position);
+
+      const cover = document.createElement('div');
+      cover.className = 'route-item__cover';
+      cover.setAttribute('role', 'img');
+      setCover(cover, entry.game.coverUrl, entry.game.title, '--');
+      item.appendChild(cover);
+
+      const body = document.createElement('div');
+
+      const title = document.createElement('p');
+      title.className = 'route-item__title';
+      const link = document.createElement('a');
+      link.href = `/juego?slug=${encodeURIComponent(entry.game.slug)}`;
+      link.textContent = entry.game.title;
+      title.appendChild(link);
+      body.appendChild(title);
+
+      if (entry.note) {
+        const note = document.createElement('p');
+        note.className = 'route-item__note';
+        note.textContent = entry.note;
+        body.appendChild(note);
+      }
+
+      const meta = document.createElement('span');
+      meta.className = 'route-item__meta';
+      meta.textContent = [
+        entry.game.releaseDate ? formatDate(entry.game.releaseDate) : null,
+        entry.game.qualityScore !== null ? `Calidad ${entry.game.qualityScore}` : null,
+      ]
+        .filter(Boolean)
+        .join(' - ');
+      body.appendChild(meta);
+
+      item.appendChild(body);
+      franchiseRoute.appendChild(item);
+    }
+
+    franchisePanel.hidden = false;
+  }
+
+  async function load(): Promise<void> {
+    if (!state || !detail) return;
+
+    if (!slug) {
+      detail.hidden = true;
+      renderError(state, 'Falta el parametro "slug" en la URL.');
+      return;
+    }
+
+    showLoading(state, 'Cargando ficha del juego...');
+
+    try {
+      const data = await getGame(slug);
+      state.innerHTML = '';
+
+      const cover = document.querySelector<HTMLElement>('[data-game-cover]');
+      setCover(cover, data.game.coverUrl, data.game.title);
+
+      text('[data-game-title]', data.game.title);
+      text('[data-game-summary]', data.game.summary ?? '');
+      text('[data-game-description]', data.game.description ?? '');
+      text(
+        '[data-game-metacritic]',
+        data.game.metacriticScore !== null ? `Metacritic ${data.game.metacriticScore}` : 'Metacritic --',
+      );
+      text(
+        '[data-game-quality]',
+        data.game.qualityScore !== null ? `Calidad ${data.game.qualityScore}` : 'Calidad --',
+      );
+      text('[data-game-release]', formatDate(data.game.releaseDate));
+      text('[data-game-genres]', (data.game.genres ?? []).join(', ') || 'Genero desconocido');
+      text('[data-game-platforms]', (data.game.platforms ?? []).join(', ') || 'Plataforma desconocida');
+
+      detail.hidden = false;
+      document.title = `${data.game.title} - GoRoDeals`;
+
+      renderOffers(data);
+      renderChart(data.priceHistory ?? []);
+      renderFranchise(data);
+    } catch (error) {
+      detail.hidden = true;
+      renderError(state, describeError(error));
+    }
+  }
+
+  void load();
+
+  // Tras una sincronizacion se vuelve a pedir la ficha.
+  window.addEventListener('gorodeals:sync-complete', () => {
+    void load();
+  });
+</script>

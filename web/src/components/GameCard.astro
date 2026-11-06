@@ -1,0 +1,25 @@
+---
+// Plantilla de tarjeta de catalogo. Se clona desde el cliente para renderizar
+// los datos que llegan por fetch, sin necesidad de SSR.
+---
+
+<template data-template="game-card">
+  <article class="game-card">
+    <a class="game-card__link" href="#" data-card-link>
+      <div class="game-card__cover" role="img" data-card-cover></div>
+      <div class="game-card__body">
+        <h3 class="game-card__title" data-card-title></h3>
+        <span class="game-card__platforms" data-card-platforms></span>
+        <div class="game-card__scores">
+          <span class="badge badge--meta" data-card-metacritic></span>
+          <span class="badge" data-card-quality></span>
+          <span class="badge" data-card-deal></span>
+        </div>
+        <div class="game-card__footer">
+          <div class="game-card__price" data-card-price></div>
+          <span class="store-tag" data-card-store></span>
+        </div>
+      </div>
+    </a>
+  </article>
+</template>

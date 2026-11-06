@@ -1,0 +1,87 @@
+---
+import Base from '../layouts/Base.astro';
+import GameCard from '../components/GameCard.astro';
+import PriceTag from '../components/PriceTag.astro';
+import Pagination from '../components/Pagination.astro';
+import ErrorState from '../components/ErrorState.astro';
+---
+
+<Base title="Catalogo - GoRoDeals" current="catalogo">
+  <h1 class="page-title">Catalogo de juegos</h1>
+  <p class="page-subtitle" data-results-info>Cargando catalogo...</p>
+
+  <div id="catalog-state" data-catalog-state></div>
+
+  <div class="card-grid" id="catalog-grid" data-catalog-grid></div>
+
+  <div id="catalog-pagination" data-catalog-pagination></div>
+
+  <GameCard />
+  <PriceTag />
+  <Pagination />
+  <ErrorState />
+</Base>
+
+<script>
+  import { getCatalog, describeError } from '../lib/api';
+  import type { CatalogSort, CatalogStore } from '../lib/api';
+  import { renderCardGrid, renderError, renderPagination, showLoading } from '../lib/render';
+
+  const grid = document.querySelector<HTMLElement>('[data-catalog-grid]');
+  const pagination = document.querySelector<HTMLElement>('[data-catalog-pagination]');
+  const state = document.querySelector<HTMLElement>('[data-catalog-state]');
+  const info = document.querySelector<HTMLElement>('[data-results-info]');
+
+  const params = new URLSearchParams(window.location.search);
+  const page = Math.max(1, Number(params.get('page') ?? '1') || 1);
+  const limit = Math.max(1, Math.min(60, Number(params.get('limit') ?? '24') || 24));
+  const q = params.get('q') ?? '';
+  const sort = (params.get('sort') ?? 'recent') as CatalogSort;
+  const store = (params.get('store') ?? '') as CatalogStore | '';
+
+  const searchInput = document.querySelector<HTMLInputElement>('[data-search-input]');
+  const sortSelect = document.querySelector<HTMLSelectElement>('[data-sort-select]');
+  if (searchInput) searchInput.value = q;
+  if (sortSelect && ['recent', 'quality', 'discount'].includes(sort)) sortSelect.value = sort;
+
+  async function load(): Promise<void> {
+    if (!grid || !pagination || !state) return;
+    state.innerHTML = '';
+    pagination.innerHTML = '';
+    showLoading(grid, 'Cargando juegos...');
+    if (info) info.textContent = 'Cargando catalogo...';
+
+    try {
+      const data = await getCatalog({
+        page,
+        limit,
+        q: q || undefined,
+        sort,
+        store: store || undefined,
+      });
+
+      renderCardGrid(grid, data.items);
+
+      if (data.items.length === 0) {
+        grid.innerHTML = '<div class="state">No se encontraron juegos para estos filtros.</div>';
+      }
+
+      renderPagination(pagination, data, params);
+
+      if (info) {
+        info.textContent = `${data.total} juegos en el catalogo - pagina ${data.page}`;
+      }
+    } catch (error) {
+      grid.innerHTML = '';
+      if (info) info.textContent = 'No se pudo cargar el catalogo.';
+      renderError(state, describeError(error));
+    }
+  }
+
+  void load();
+
+  // Tras una sincronizacion se vuelve a pedir el catalogo.
+  window.addEventListener('gorodeals:sync-complete', () => {
+    void load();
+  });
+</script>
