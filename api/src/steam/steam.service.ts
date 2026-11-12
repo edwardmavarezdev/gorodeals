@@ -1,9 +1,7 @@
-import { Injectable, Logger, NotFoundException } from '@nestjs/common';
-import { ConfigService } from '@nestjs/config';
-import { InjectRepository } from '@nestjs/typeorm';
+import type { Static } from '@sinclair/typebox';
 import { Repository } from 'typeorm';
 import { SteamClient } from './steam.client.js';
-import { SteamAppDetails, SteamPriceSnapshot } from './steam.types.js';
+import { SteamAppDetails } from './steam.types.js';
 import {
   StoreName,
   StoreProduct,
@@ -14,29 +12,25 @@ import {
   SteamPriceUnavailableError,
   SteamStoreProductConflictError,
 } from './steam.errors.js';
+import type { AppConfig } from '../config.js';
+import { NotFoundException } from '../errors.js';
+import { createLogger } from '../logger.js';
+import {
+  SteamPriceSnapshot,
+  SteamSyncItem,
+  SteamSyncSummary,
+} from '../schemas/steam.js';
 
 /** Divisor de los importes publicados por Steam (centavos). */
 const CENTS = 100;
 
-export interface SteamSyncItemResult {
-  appId: number;
-  status: 'upserted' | 'not_found' | 'error';
-  storeProductId?: string;
-  gameId?: string;
-  currentPrice?: number;
-  regularPrice?: number;
-  discountPercent?: number;
-  currency?: string;
-  message?: string;
-}
-
-export interface SteamSyncSummary {
-  requested: number;
-  upserted: number;
-  notFound: number;
-  errors: number;
-  items: SteamSyncItemResult[];
-}
+/**
+ * Resultado de persistir un appid de Steam.
+ *
+ * Tipo derivado del esquema `SteamSyncItem`: es el contrato de la respuesta
+ * de `POST /steam/sync`.
+ */
+export type SteamSyncItemResult = Static<typeof SteamSyncItem>;
 
 /**
  * Servicio de Steam: normaliza la respuesta de la tienda y persiste las
@@ -47,17 +41,14 @@ export interface SteamSyncSummary {
  * responsabilidad de quien sincroniza (IGDB o el catalogo), este modulo solo
  * garantiza que el precio llegue a la fila correcta sin duplicarla.
  */
-@Injectable()
 export class SteamService {
-  private readonly logger = new Logger(SteamService.name);
+  private readonly logger = createLogger('SteamService');
 
   constructor(
     private readonly client: SteamClient,
-    @InjectRepository(StoreProduct)
     private readonly storeProducts: Repository<StoreProduct>,
-    @InjectRepository(Game)
     private readonly games: Repository<Game>,
-    private readonly config: ConfigService,
+    private readonly config: AppConfig,
   ) {}
 
   /** Verifica que el juego exista: `store_products.game_id` es FK obligatoria. */
@@ -73,7 +64,10 @@ export class SteamService {
    * `price_overview` puede no existir (juego gratis, region sin IAP o app sin
    * precio publicado): en ese caso el precio es 0 y no se lanza excepcion.
    */
-  toPriceSnapshot(appId: number, details: SteamAppDetails): SteamPriceSnapshot {
+  toPriceSnapshot(
+    appId: number,
+    details: SteamAppDetails,
+  ): Static<typeof SteamPriceSnapshot> {
     const price = details.price_overview;
     const isFree = details.is_free === true;
 
@@ -134,7 +128,9 @@ export class SteamService {
   }
 
   /** Snapshot de precio de un appid, sin persistir. */
-  async getPriceSnapshot(appId: number): Promise<SteamPriceSnapshot | null> {
+  async getPriceSnapshot(
+    appId: number,
+  ): Promise<Static<typeof SteamPriceSnapshot> | null> {
     const details = await this.client.fetchAppDetails(appId);
     if (!details) {
       return null;
@@ -148,7 +144,9 @@ export class SteamService {
    * `SteamPriceUnavailableError` si existe pero no tiene precio en la region
    * configurada (por ejemplo, un DLC o una app no comprable en `us`).
    */
-  async getPricedSnapshot(appId: number): Promise<SteamPriceSnapshot> {
+  async getPricedSnapshot(
+    appId: number,
+  ): Promise<Static<typeof SteamPriceSnapshot>> {
     const details = await this.client.fetchAppDetails(appId);
     if (!details) {
       throw new SteamAppNotFoundError(appId);
@@ -162,9 +160,9 @@ export class SteamService {
   /** Snapshots de precio de varios appids, sin persistir. */
   async getPriceSnapshots(
     appIds: number[],
-  ): Promise<Map<number, SteamPriceSnapshot>> {
+  ): Promise<Map<number, Static<typeof SteamPriceSnapshot>>> {
     const details = await this.client.fetchAppDetailsBatch(appIds);
-    const snapshots = new Map<number, SteamPriceSnapshot>();
+    const snapshots = new Map<number, Static<typeof SteamPriceSnapshot>>();
     for (const [appId, appDetails] of details) {
       snapshots.set(appId, this.toPriceSnapshot(appId, appDetails));
     }
@@ -178,7 +176,7 @@ export class SteamService {
    */
   async getCurrentPrice(
     storeProduct: Pick<StoreProduct, 'storeName' | 'storeProductId'>,
-  ): Promise<SteamPriceSnapshot | null> {
+  ): Promise<Static<typeof SteamPriceSnapshot> | null> {
     if (storeProduct.storeName !== StoreName.STEAM) {
       return null;
     }
@@ -194,7 +192,10 @@ export class SteamService {
    * usa ON CONFLICT sobre (store_name, store_product_id), de modo que repetir
    * la llamada nunca duplica filas ni historial.
    */
-  async syncGame(gameId: string, appIds: number[]): Promise<SteamSyncSummary> {
+  async syncGame(
+    gameId: string,
+    appIds: number[],
+  ): Promise<Static<typeof SteamSyncSummary>> {
     await this.assertGameExists(gameId);
     const items: SteamSyncItemResult[] = [];
     const snapshots = await this.client.fetchAppDetailsBatch(appIds);
@@ -268,7 +269,7 @@ export class SteamService {
    */
   private async upsertStoreProduct(
     gameId: string,
-    snapshot: SteamPriceSnapshot,
+    snapshot: Static<typeof SteamPriceSnapshot>,
   ): Promise<StoreProduct> {
     const storeProductId = String(snapshot.appId);
 
@@ -384,12 +385,8 @@ export class SteamService {
     if (published) {
       return published.toUpperCase();
     }
-    const map =
-      this.config.get<Record<string, string>>('steam.currencyByCountryCode') ??
-      {};
-    const countryCode = (
-      this.config.get<string>('steam.countryCode') ?? 'us'
-    ).toLowerCase();
+    const map = this.config.steam.currencyByCountryCode;
+    const countryCode = this.config.steam.countryCode.toLowerCase();
     return (map[countryCode] ?? 'USD').toUpperCase();
   }
 }

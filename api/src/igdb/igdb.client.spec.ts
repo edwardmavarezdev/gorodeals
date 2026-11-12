@@ -1,19 +1,22 @@
-import { ConfigService } from '@nestjs/config';
+import type { AppConfig } from '../config.js';
 import { IgdbClient } from './igdb.client.js';
 import { IgdbRateLimitError } from './igdb.errors.js';
 
-function buildConfig(overrides: Record<string, unknown> = {}): ConfigService {
-  const values: Record<string, unknown> = {
-    'igdb.clientId': 'client-id',
-    'igdb.clientSecret': 'client-secret',
-    'igdb.tokenUrl': 'https://id.twitch.tv/oauth2/token',
-    'igdb.apiUrl': 'https://api.igdb.com/v4/games',
-    'igdb.timeoutMs': 5000,
-    ...overrides,
-  };
+/**
+ * Configuracion de pruebas: solo la rama `igdb` del arbol, con los valores
+ * por defecto que usa el cliente mas los ajustes de cada caso.
+ */
+function buildConfig(overrides: Partial<AppConfig['igdb']> = {}): AppConfig {
   return {
-    get: (key: string) => values[key],
-  } as unknown as ConfigService;
+    igdb: {
+      clientId: 'client-id',
+      clientSecret: 'client-secret',
+      tokenUrl: 'https://id.twitch.tv/oauth2/token',
+      apiUrl: 'https://api.igdb.com/v4/games',
+      timeoutMs: 5000,
+      ...overrides,
+    },
+  } as unknown as AppConfig;
 }
 
 function jsonResponse(

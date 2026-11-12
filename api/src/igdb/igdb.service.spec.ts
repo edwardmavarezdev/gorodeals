@@ -1,5 +1,4 @@
-import { Test } from '@nestjs/testing';
-import { getRepositoryToken } from '@nestjs/typeorm';
+import type { Repository } from 'typeorm';
 import { Game } from '../games/entities/game.entity.js';
 import { IgdbClient } from './igdb.client.js';
 import { IgdbService } from './igdb.service.js';
@@ -102,19 +101,16 @@ describe('IgdbService', () => {
     aggregated_rating_count: 42,
   };
 
-  beforeEach(async () => {
+  beforeEach(() => {
     client = new FakeIgdbClient();
     repository = new FakeGameRepository();
 
-    const moduleRef = await Test.createTestingModule({
-      providers: [
-        IgdbService,
-        { provide: IgdbClient, useValue: client },
-        { provide: getRepositoryToken(Game), useValue: repository },
-      ],
-    }).compile();
-
-    service = moduleRef.get(IgdbService);
+    // El grafo de servicios se construye a mano: aqui solo hacen falta el
+    // cliente y el repositorio, con dobles propios.
+    service = new IgdbService(
+      client as unknown as IgdbClient,
+      repository as unknown as Repository<Game>,
+    );
   });
 
   describe('searchByName', () => {

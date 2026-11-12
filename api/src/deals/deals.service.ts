@@ -1,8 +1,8 @@
-import { Injectable } from '@nestjs/common';
+import type { Static } from '@sinclair/typebox';
 import { DataSource } from 'typeorm';
 import { DealScoreService } from './deal-score.service.js';
-import { HottestDealsResponseDto } from './dto/hottest-deals-response.dto.js';
-import { CatalogItemDto } from '../games/dto/catalog-item.dto.js';
+import { HottestDealsResponse } from '../schemas/deals.js';
+import { CatalogItem } from '../schemas/catalog.js';
 
 /**
  * Oferta candidata del top, con los datos del juego resuelto en la misma
@@ -33,7 +33,6 @@ interface DealRow {
 /** Numero maximo de candidatos leidos antes de ordenar en memoria. */
 const MAX_CANDIDATES = 200;
 
-@Injectable()
 export class DealsService {
   constructor(
     private readonly dataSource: DataSource,
@@ -45,7 +44,9 @@ export class DealsService {
    * descuento. Cuando `deal_score` no esta persistido, el score se calcula
    * en memoria (no se persiste en esta fase) y se usa para ordenar.
    */
-  async hottest(limit: number = 20): Promise<HottestDealsResponseDto> {
+  async hottest(
+    limit: number = 20,
+  ): Promise<Static<typeof HottestDealsResponse>> {
     const candidates = Math.min(limit * 5, MAX_CANDIDATES);
 
     const rows = await this.dataSource.query<DealRow[]>(
@@ -79,7 +80,7 @@ export class DealsService {
       [candidates],
     );
 
-    const items: CatalogItemDto[] = rows
+    const items: Static<typeof CatalogItem>[] = rows
       .map((row) => this.toCatalogItem(row))
       .sort((a, b) => {
         const scoreA = a.bestOffer?.dealScore ?? 0;
@@ -101,7 +102,7 @@ export class DealsService {
    * Convierte una fila del top en el formato de item del catalogo, con la
    * oferta como `bestOffer` y el Deal Score efectivo.
    */
-  private toCatalogItem(row: DealRow): CatalogItemDto {
+  private toCatalogItem(row: DealRow): Static<typeof CatalogItem> {
     const qualityScore = Number(row.quality_score);
     const currentPrice = Number(row.current_price);
     const discountPercent = Number(row.discount_percent);
@@ -141,6 +142,7 @@ export class DealsService {
         currency: row.currency,
         url: row.url,
         dealScore,
+        historicalLowPrice,
       },
     };
   }

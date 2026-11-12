@@ -1,24 +1,53 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
-import { InjectRepository } from '@nestjs/typeorm';
+import type { Static } from '@sinclair/typebox';
 import { Repository } from 'typeorm';
 import { Franchise } from './entities/franchise.entity.js';
 import { FranchisePlayOrder } from './entities/franchise-play-order.entity.js';
-import { FranchiseRouteDto, RouteEntryDto } from './dto/franchise-route.dto.js';
+import { NotFoundException } from '../errors.js';
+import { FranchiseRoute, FranchiseSummary } from '../schemas/franchises.js';
+import { RouteEntry } from '../schemas/games.js';
 
-@Injectable()
 export class FranchisesService {
   constructor(
-    @InjectRepository(Franchise)
     private readonly franchiseRepo: Repository<Franchise>,
-    @InjectRepository(FranchisePlayOrder)
     private readonly playOrderRepo: Repository<FranchisePlayOrder>,
   ) {}
+
+  /**
+   * Listado de sagas con el numero de juegos de cada una. Resuelve el
+   * recuento con una unica consulta agregada sobre `franchise_play_order`.
+   */
+  async findAll(): Promise<Static<typeof FranchiseSummary>[]> {
+    const rows = await this.playOrderRepo
+      .createQueryBuilder('fpo')
+      .innerJoin('fpo.franchise', 'franchise')
+      .select([
+        'franchise.slug AS "slug"',
+        'franchise.name AS "name"',
+        'franchise.description AS "description"',
+        'COUNT(fpo.id) AS "gameCount"',
+      ])
+      .groupBy('franchise.id')
+      .orderBy('franchise.name', 'ASC')
+      .getRawMany<{
+        slug: string;
+        name: string;
+        description: string | null;
+        gameCount: string;
+      }>();
+
+    return rows.map((row) => ({
+      slug: row.slug,
+      name: row.name,
+      description: row.description,
+      gameCount: Number(row.gameCount),
+    }));
+  }
 
   /**
    * Ruta de juego de una saga, ordenada por posicion y con los juegos
    * resueltos. Devuelve 404 si la saga no existe.
    */
-  async findRouteBySlug(slug: string): Promise<FranchiseRouteDto> {
+  async findRouteBySlug(slug: string): Promise<Static<typeof FranchiseRoute>> {
     const franchise = await this.franchiseRepo.findOne({ where: { slug } });
     if (!franchise) {
       throw new NotFoundException(`No existe la saga con slug "${slug}"`);
@@ -30,7 +59,9 @@ export class FranchisesService {
    * Ruta de la saga a la que pertenece un juego. Si el juego no esta en
    * ninguna saga devuelve null.
    */
-  async findRouteForGame(gameId: string): Promise<FranchiseRouteDto | null> {
+  async findRouteForGame(
+    gameId: string,
+  ): Promise<Static<typeof FranchiseRoute> | null> {
     const entry = await this.playOrderRepo.findOne({
       where: { gameId },
       relations: { franchise: true },
@@ -45,7 +76,9 @@ export class FranchisesService {
    * Construye la ruta de una saga con un unico JOIN sobre
    * `franchise_play_order` y `games`.
    */
-  private async buildRoute(franchise: Franchise): Promise<FranchiseRouteDto> {
+  private async buildRoute(
+    franchise: Franchise,
+  ): Promise<Static<typeof FranchiseRoute>> {
     const rows = await this.playOrderRepo
       .createQueryBuilder('fpo')
       .innerJoin('fpo.game', 'game')
@@ -70,7 +103,7 @@ export class FranchisesService {
         gameQualityScore: number;
       }>();
 
-    const route: RouteEntryDto[] = rows.map((row) => ({
+    const route: Static<typeof RouteEntry>[] = rows.map((row) => ({
       position: Number(row.position),
       note: row.note,
       game: {

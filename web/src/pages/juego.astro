@@ -19,6 +19,9 @@ import ErrorState from '../components/ErrorState.astro';
         <span class="badge" data-game-genres></span>
         <span class="badge" data-game-platforms></span>
       </div>
+      <button type="button" class="wishlist-button" data-wishlist-button disabled>
+        Anadir a la wishlist
+      </button>
     </aside>
 
     <section>
@@ -66,6 +69,9 @@ import ErrorState from '../components/ErrorState.astro';
   import { getGame, describeError } from '../lib/api';
   import type { GameDetailResponse, PriceHistoryPoint } from '../lib/api';
   import { formatDate, formatPrice, renderError, setCover, showLoading } from '../lib/render';
+  import { isAuthenticated } from '../lib/auth';
+  import { addToWishlist, getWishlist, removeFromWishlist } from '../lib/wishlist';
+  import { ApiError } from '../lib/auth';
 
   const slug = new URLSearchParams(window.location.search).get('slug') ?? '';
   const state = document.querySelector<HTMLElement>('[data-game-state]');
@@ -75,6 +81,64 @@ import ErrorState from '../components/ErrorState.astro';
   const chartPanel = document.querySelector<HTMLElement>('[data-chart-panel]');
   const franchisePanel = document.querySelector<HTMLElement>('[data-franchise-panel]');
   const franchiseRoute = document.querySelector<HTMLElement>('[data-franchise-route]');
+  const wishlistButton = document.querySelector<HTMLButtonElement>('[data-wishlist-button]');
+
+  /** Datos del juego actual, usados por el boton de wishlist. */
+  let currentGame: { id: string; slug: string } | null = null;
+  /** Indica si el juego ya esta en la lista de deseos del usuario. */
+  let inWishlist = false;
+
+  function paintWishlistButton(): void {
+    if (!wishlistButton) return;
+    wishlistButton.disabled = false;
+    wishlistButton.classList.toggle('wishlist-button--active', inWishlist);
+    wishlistButton.textContent = inWishlist
+      ? 'Quitar de la wishlist'
+      : 'Anadir a la wishlist';
+  }
+
+  /** Consulta si el juego actual ya esta en la lista del usuario. */
+  async function syncWishlistState(): Promise<void> {
+    if (!wishlistButton || !currentGame) return;
+    if (!isAuthenticated()) {
+      wishlistButton.disabled = false;
+      wishlistButton.textContent = 'Inicia sesion para usar la wishlist';
+      return;
+    }
+    try {
+      // La API acepta como mucho 100 elementos por pagina: pedir mas
+      // devuelve 400 y la ficha no sabria si el juego ya esta en la lista.
+      const response = await getWishlist({ limit: 100 });
+      inWishlist = response.items.some((item) => item.gameId === currentGame?.id);
+    } catch {
+      inWishlist = false;
+    }
+    paintWishlistButton();
+  }
+
+  async function toggleWishlist(): Promise<void> {
+    if (!currentGame || !wishlistButton) return;
+    if (!isAuthenticated()) {
+      window.location.href = '/cuenta';
+      return;
+    }
+    wishlistButton.disabled = true;
+    try {
+      if (inWishlist) {
+        await removeFromWishlist(currentGame.id);
+        inWishlist = false;
+      } else {
+        await addToWishlist({ gameId: currentGame.id, slug: currentGame.slug });
+        inWishlist = true;
+      }
+    } catch (error) {
+      const message =
+        error instanceof ApiError ? error.message : 'No se pudo actualizar la wishlist.';
+      window.alert(message);
+    } finally {
+      paintWishlistButton();
+    }
+  }
 
   function text(selector: string, value: string): void {
     const node = document.querySelector(selector);
@@ -145,8 +209,11 @@ import ErrorState from '../components/ErrorState.astro';
 
   function renderChart(points: PriceHistoryPoint[]): void {
     if (!chartPanel) return;
+    // El panel se muestra ANTES de crear el grafico: Chart.js mide el lienzo
+    // en el momento de crearlo, y si el panel sigue oculto mide 0x0 y el
+    // grafico no se ve (el lienzo se queda a 0x0 aunque despues se muestre).
+    chartPanel.hidden = false;
     if (points.length === 0) {
-      chartPanel.hidden = false;
       const wrap = chartPanel.querySelector('.chart-wrap');
       if (wrap) {
         wrap.innerHTML = '<div class="state">No hay datos de historico de precios.</div>';
@@ -202,15 +269,15 @@ import ErrorState from '../components/ErrorState.astro';
         label: storeName,
         data: entry.points.map((point) => point.price),
         regularData: entry.regular,
-        borderColor: '#7cf03d',
-        backgroundColor: 'rgba(124, 240, 61, 0.12)',
+        borderColor: '#7ef03d',
+        backgroundColor: 'rgba(126, 240, 61, 0.12)',
         tension: 0.25,
         fill: true,
       })),
     };
 
-    chartGlobal.defaults.color = '#8b98a9';
-    chartGlobal.defaults.borderColor = '#232c38';
+    chartGlobal.defaults.color = '#8d9bad';
+    chartGlobal.defaults.borderColor = '#232b37';
 
     new chartGlobal(canvas, {
       type: 'line',
@@ -219,7 +286,7 @@ import ErrorState from '../components/ErrorState.astro';
         responsive: true,
         maintainAspectRatio: false,
         plugins: {
-          legend: { labels: { color: '#e6edf3' } },
+          legend: { labels: { color: '#e9eff7' } },
           tooltip: {
             callbacks: {
               label: (context: { dataset: { label?: string }; parsed: { y?: number | null } }) =>
@@ -228,13 +295,11 @@ import ErrorState from '../components/ErrorState.astro';
           },
         },
         scales: {
-          x: { ticks: { color: '#8b98a9' }, grid: { color: '#232c38' } },
-          y: { ticks: { color: '#8b98a9' }, grid: { color: '#232c38' } },
+          x: { ticks: { color: '#8d9bad' }, grid: { color: '#1b222c' } },
+          y: { ticks: { color: '#8d9bad' }, grid: { color: '#1b222c' } },
         },
       },
     });
-
-    chartPanel.hidden = false;
   }
 
   function renderFranchise(data: GameDetailResponse): void {
@@ -330,6 +395,9 @@ import ErrorState from '../components/ErrorState.astro';
       detail.hidden = false;
       document.title = `${data.game.title} - GoRoDeals`;
 
+      currentGame = { id: data.game.id, slug: data.game.slug };
+      void syncWishlistState();
+
       renderOffers(data);
       renderChart(data.priceHistory ?? []);
       renderFranchise(data);
@@ -340,6 +408,10 @@ import ErrorState from '../components/ErrorState.astro';
   }
 
   void load();
+
+  wishlistButton?.addEventListener('click', () => {
+    void toggleWishlist();
+  });
 
   // Tras una sincronizacion se vuelve a pedir la ficha.
   window.addEventListener('gorodeals:sync-complete', () => {

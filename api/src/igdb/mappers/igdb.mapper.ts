@@ -1,4 +1,5 @@
-import type { IgdbGameDto } from '../dto/igdb-game.dto.js';
+import type { Static } from '@sinclair/typebox';
+import { IgdbGame } from '../../schemas/igdb.js';
 import type { IgdbRawGame } from '../igdb.types.js';
 
 const IMAGE_BASE_URL = 'https://images.igdb.com/igdb/image/upload';
@@ -99,8 +100,8 @@ export function isValidRawGame(raw: unknown): raw is IgdbRawGame {
   );
 }
 
-/** Mapea la respuesta cruda de IGDB al DTO normalizado de la API. */
-export function mapRawGameToDto(raw: IgdbRawGame): IgdbGameDto {
+/** Mapea la respuesta cruda de IGDB al juego normalizado de la API. */
+export function mapRawGameToDto(raw: IgdbRawGame): Static<typeof IgdbGame> {
   const screenshots = (raw.screenshots ?? [])
     .map((screenshot) => buildScreenshotUrl(screenshot?.image_id))
     .filter((url): url is string => url !== null);

@@ -1,24 +1,27 @@
-import { ConfigService } from '@nestjs/config';
+import type { AppConfig } from '../config.js';
 import { SteamClient } from './steam.client.js';
 import { SteamInvalidResponseError } from './steam.errors.js';
 
-function buildConfig(overrides: Record<string, unknown> = {}): ConfigService {
-  const values: Record<string, unknown> = {
-    'steam.baseUrl': 'https://store.steampowered.com/api',
-    'steam.countryCode': 'us',
-    'steam.language': 'es',
-    'steam.timeoutMs': 1000,
-    'steam.maxRetries': 1,
-    'steam.cacheTtlMs': 60_000,
-    'steam.cacheMaxEntries': 3,
-    'steam.batchSize': 50,
-    'steam.concurrency': 2,
-    'steam.interBatchDelayMs': 0,
-    ...overrides,
-  };
+/**
+ * Configuracion de pruebas: solo la rama `steam` del arbol, con los valores
+ * por defecto que usa el cliente mas los ajustes de cada caso.
+ */
+function buildConfig(overrides: Partial<AppConfig['steam']> = {}): AppConfig {
   return {
-    get: (key: string) => values[key],
-  } as unknown as ConfigService;
+    steam: {
+      baseUrl: 'https://store.steampowered.com/api',
+      countryCode: 'us',
+      language: 'es',
+      timeoutMs: 1000,
+      maxRetries: 1,
+      cacheTtlMs: 60_000,
+      cacheMaxEntries: 3,
+      batchSize: 50,
+      concurrency: 2,
+      interBatchDelayMs: 0,
+      ...overrides,
+    },
+  } as unknown as AppConfig;
 }
 
 /** Respuesta falsa de `fetch`, con la forma que consume el cliente. */
@@ -97,7 +100,7 @@ describe('SteamClient', () => {
       );
     });
 
-    const client = new SteamClient(buildConfig({ 'steam.cacheTtlMs': 0 }));
+    const client = new SteamClient(buildConfig({ cacheTtlMs: 0 }));
 
     await client.fetchAppDetails(440);
     await client.fetchAppDetails(440);
@@ -113,7 +116,7 @@ describe('SteamClient', () => {
       return Promise.resolve(fakeResponse('<html>no soy json</html>'));
     });
 
-    const client = new SteamClient(buildConfig({ 'steam.maxRetries': 3 }));
+    const client = new SteamClient(buildConfig({ maxRetries: 3 }));
 
     await expect(client.fetchAppDetails(440)).rejects.toBeInstanceOf(
       SteamInvalidResponseError,

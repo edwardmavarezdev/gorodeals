@@ -1,0 +1,228 @@
+---
+import Base from '../layouts/Base.astro';
+import ErrorState from '../components/ErrorState.astro';
+---
+
+<Base title="Publicacion - GoRoDeals" current="publicaciones">
+  <p class="crumbs"><a href="/publicaciones">Publicaciones</a> / <span data-article-crumb></span></p>
+
+  <div id="publication-state" data-publication-state></div>
+
+  <article class="article" data-article hidden>
+    <span class="pub-tag" data-article-tag></span>
+    <h1 class="article__title" data-article-title></h1>
+    <p class="article__lead" data-article-excerpt></p>
+    <div class="article__meta">
+      <span data-article-author></span>
+      <span data-article-date></span>
+      <span data-article-reading></span>
+    </div>
+
+    <div class="article__cover" role="img" data-article-cover></div>
+
+    <div class="article__body" data-article-body></div>
+  </article>
+
+  <section class="panel" data-article-route-panel hidden>
+    <h2>Ruta de la saga</h2>
+    <ol class="route-list" data-article-route></ol>
+  </section>
+
+  <section class="panel" data-article-games-panel hidden>
+    <h2>Juegos de la publicacion</h2>
+    <div class="card-grid" data-article-games></div>
+  </section>
+
+  <ErrorState />
+</Base>
+
+<script>
+  import { getPublication, describeError } from '../lib/api';
+  import type { PublicationDetail } from '../lib/api';
+  import { renderMarkdown } from '../lib/markdown';
+  import { formatDate, formatPrice, renderError, setCover, showLoading } from '../lib/render';
+
+  const slug = new URLSearchParams(window.location.search).get('slug') ?? '';
+  const state = document.querySelector<HTMLElement>('[data-publication-state]');
+  const article = document.querySelector<HTMLElement>('[data-article]');
+  const routePanel = document.querySelector<HTMLElement>('[data-article-route-panel]');
+  const routeList = document.querySelector<HTMLElement>('[data-article-route]');
+  const gamesPanel = document.querySelector<HTMLElement>('[data-article-games-panel]');
+  const gamesGrid = document.querySelector<HTMLElement>('[data-article-games]');
+
+  function text(selector: string, value: string): void {
+    const node = document.querySelector(selector);
+    if (node) node.textContent = value;
+  }
+
+  function renderRoute(data: PublicationDetail): void {
+    if (!routePanel || !routeList || !data.route) return;
+
+    routeList.innerHTML = '';
+    for (const entry of data.route.entries) {
+      const item = document.createElement('li');
+      item.className = 'route-item';
+
+      const position = document.createElement('span');
+      position.className = 'route-item__position';
+      position.textContent = String(entry.position);
+      item.appendChild(position);
+
+      const cover = document.createElement('div');
+      cover.className = 'route-item__cover';
+      cover.setAttribute('role', 'img');
+      setCover(cover, entry.game.coverUrl, entry.game.title, '--');
+      item.appendChild(cover);
+
+      const body = document.createElement('div');
+
+      const title = document.createElement('p');
+      title.className = 'route-item__title';
+      const link = document.createElement('a');
+      link.href = `/juego?slug=${encodeURIComponent(entry.game.slug)}`;
+      link.textContent = entry.game.title;
+      title.appendChild(link);
+      body.appendChild(title);
+
+      if (entry.note) {
+        const note = document.createElement('p');
+        note.className = 'route-item__note';
+        note.textContent = entry.note;
+        body.appendChild(note);
+      }
+
+      item.appendChild(body);
+      routeList.appendChild(item);
+    }
+
+    routePanel.hidden = false;
+  }
+
+  function renderRelatedGames(data: PublicationDetail): void {
+    if (!gamesPanel || !gamesGrid) return;
+    if (!data.relatedGames || data.relatedGames.length === 0) {
+      gamesPanel.hidden = true;
+      return;
+    }
+
+    gamesGrid.innerHTML = '';
+    for (const game of data.relatedGames) {
+      const card = document.createElement('article');
+      card.className = 'game-card';
+
+      const link = document.createElement('a');
+      link.href = `/juego?slug=${encodeURIComponent(game.slug)}`;
+
+      const cover = document.createElement('div');
+      cover.className = 'game-card__cover';
+      cover.setAttribute('role', 'img');
+      setCover(cover, game.coverUrl, game.title);
+      link.appendChild(cover);
+
+      const body = document.createElement('div');
+      body.className = 'game-card__body';
+
+      const title = document.createElement('h3');
+      title.className = 'game-card__title';
+      title.textContent = game.title;
+      body.appendChild(title);
+
+      const platform = document.createElement('span');
+      platform.className = 'game-card__platforms';
+      platform.textContent = game.releaseDate ? formatDate(game.releaseDate) : '';
+      body.appendChild(platform);
+
+      const footer = document.createElement('div');
+      footer.className = 'game-card__footer';
+
+      const price = document.createElement('div');
+      price.className = 'game-card__price';
+      const current = document.createElement('span');
+      current.className = 'price-current';
+      current.textContent = formatPrice(game.bestPrice, game.currency ?? 'USD');
+      price.appendChild(current);
+
+      if (game.discountPercent && game.discountPercent > 0) {
+        const discount = document.createElement('span');
+        discount.className = 'discount';
+        discount.textContent = `-${game.discountPercent}%`;
+        price.appendChild(discount);
+      }
+
+      footer.appendChild(price);
+
+      const store = document.createElement('span');
+      store.className = 'store-tag';
+      store.textContent = game.storeName ?? '';
+      footer.appendChild(store);
+
+      body.appendChild(footer);
+      link.appendChild(body);
+      card.appendChild(link);
+      gamesGrid.appendChild(card);
+    }
+
+    gamesPanel.hidden = false;
+  }
+
+  async function load(): Promise<void> {
+    if (!state || !article) return;
+
+    if (!slug) {
+      article.hidden = true;
+      renderError(state, 'Falta el parametro "slug" en la URL.');
+      return;
+    }
+
+    showLoading(state, 'Cargando publicacion...');
+
+    try {
+      const data = await getPublication(slug);
+      state.innerHTML = '';
+
+      document.title = `${data.title} - GoRoDeals`;
+      text('[data-article-crumb]', data.title);
+      text('[data-article-title]', data.title);
+      text('[data-article-excerpt]', data.excerpt);
+      text('[data-article-author]', data.authorName);
+      text('[data-article-date]', formatDate(data.publishedAt));
+      text('[data-article-reading]', `${data.readingMinutes} min de lectura`);
+
+      const tag = document.querySelector('[data-article-tag]');
+      if (tag) {
+        const label = data.category ?? '';
+        const names: Record<string, string> = {
+          guia: 'Guia',
+          ruta: 'Ruta de saga',
+          analisis: 'Analisis',
+          noticia: 'Noticia',
+        };
+        tag.textContent = names[label] ?? 'Publicacion';
+        tag.classList.add(`pub-tag--${label}`);
+      }
+
+      const cover = document.querySelector<HTMLElement>('[data-article-cover]');
+      if (cover) {
+        if (data.coverUrl) {
+          setCover(cover, data.coverUrl, data.title, 'Sin imagen');
+        } else {
+          // Sin imagen no se deja un hueco vacio de 16:9 en medio del articulo.
+          cover.classList.add('hidden');
+        }
+      }
+
+      const body = document.querySelector<HTMLElement>('[data-article-body]');
+      if (body) body.innerHTML = renderMarkdown(data.body);
+
+      article.hidden = false;
+
+      renderRoute(data);
+      renderRelatedGames(data);
+    } catch (error) {
+      article.hidden = true;
+      renderError(state, describeError(error));
+    }
+  }
+
+  void load();
+</script>

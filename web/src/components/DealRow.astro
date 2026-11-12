@@ -1,0 +1,23 @@
+---
+// Plantilla de fila de oferta (estilo listado de GG.deals): caratula pequena,
+// metadatos a la izquierda y precio a la derecha. Se clona desde el cliente.
+---
+
+<template data-template="deal-row">
+  <article class="deal-row">
+    <a class="deal-row__cover" href="#" data-row-link data-row-cover role="img"></a>
+    <div class="deal-row__info">
+      <h3 class="deal-row__title" data-row-title></h3>
+      <div class="deal-row__meta">
+        <span class="badge" data-row-store></span>
+        <span class="badge badge--blue" data-row-platforms></span>
+        <span class="badge badge--meta" data-row-metacritic></span>
+      </div>
+      <p class="deal-row__note" data-row-note></p>
+    </div>
+    <div class="deal-row__side">
+      <span class="deal-score" data-row-score></span>
+      <div class="deal-row__prices" data-row-price></div>
+    </div>
+  </article>
+</template>

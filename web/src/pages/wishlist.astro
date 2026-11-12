@@ -1,0 +1,205 @@
+---
+import Base from '../layouts/Base.astro';
+import ErrorState from '../components/ErrorState.astro';
+---
+
+<Base title="Mi lista de deseos - GoRoDeals">
+  <h1 class="page-title">Mi lista de deseos</h1>
+  <p class="page-subtitle" data-wishlist-subtitle>
+    Los juegos que has marcado para comprar mas adelante.
+  </p>
+
+  <div class="wishlist-toolbar" data-wishlist-toolbar hidden>
+    <span class="wishlist-count" data-wishlist-count></span>
+    <div class="wishlist-actions">
+      <button type="button" class="btn btn--ghost" data-sync-gog>Sincronizar GOG</button>
+      <button type="button" class="btn btn--ghost" data-sync-nintendo>
+        Sincronizar Nintendo
+      </button>
+    </div>
+  </div>
+
+  <p class="wishlist-sync-status hidden" data-sync-status role="status"></p>
+
+  <div id="wishlist-state" data-wishlist-state></div>
+
+  <ul class="wishlist-grid" data-wishlist-list></ul>
+
+  <ErrorState />
+</Base>
+
+<script>
+  import { describeError } from '../lib/api';
+  import { isAuthenticated, setSessionExpiredHandler } from '../lib/auth';
+  import { renderError, setCover, showLoading } from '../lib/render';
+  import { getWishlist, removeFromWishlist, syncWishlist } from '../lib/wishlist';
+
+  const state = document.querySelector<HTMLElement>('[data-wishlist-state]');
+  const list = document.querySelector<HTMLElement>('[data-wishlist-list]');
+  const toolbar = document.querySelector<HTMLElement>('[data-wishlist-toolbar]');
+  const count = document.querySelector<HTMLElement>('[data-wishlist-count]');
+  const subtitle = document.querySelector<HTMLElement>('[data-wishlist-subtitle]');
+  const syncStatus = document.querySelector<HTMLElement>('[data-sync-status]');
+
+  function showSyncStatus(message: string, kind: 'ok' | 'error'): void {
+    if (!syncStatus) return;
+    syncStatus.textContent = message;
+    syncStatus.classList.remove('hidden');
+    syncStatus.classList.toggle('state--error', kind === 'error');
+  }
+
+  function buildItem(item: {
+    id: string;
+    gameId: string;
+    slug: string;
+    title: string;
+    coverUrl: string | null;
+    store: string | null;
+    note: string | null;
+    createdAt: string;
+  }): HTMLElement {
+    const root = document.createElement('li');
+    root.className = 'wishlist-item';
+
+    const cover = document.createElement('a');
+    cover.className = 'wishlist-item__cover';
+    cover.href = `/juego?slug=${encodeURIComponent(item.slug)}`;
+    cover.setAttribute('role', 'img');
+    setCover(cover, item.coverUrl, item.title);
+    root.appendChild(cover);
+
+    const body = document.createElement('div');
+    body.className = 'wishlist-item__body';
+
+    const title = document.createElement('a');
+    title.className = 'wishlist-item__title';
+    title.href = `/juego?slug=${encodeURIComponent(item.slug)}`;
+    title.textContent = item.title;
+    body.appendChild(title);
+
+    const meta = document.createElement('span');
+    meta.className = 'wishlist-item__meta';
+    meta.textContent = item.store ? `Tienda: ${item.store}` : 'Sin tienda asignada';
+    body.appendChild(meta);
+
+    if (item.note) {
+      const note = document.createElement('p');
+      note.className = 'wishlist-item__note';
+      note.textContent = item.note;
+      body.appendChild(note);
+    }
+
+    const remove = document.createElement('button');
+    remove.type = 'button';
+    remove.className = 'btn btn--ghost wishlist-item__remove';
+    remove.textContent = 'Quitar';
+    remove.addEventListener('click', () => {
+      remove.disabled = true;
+      void removeFromWishlist(item.gameId)
+        .then(() => {
+          root.remove();
+          void refresh();
+        })
+        .catch((error: unknown) => {
+          remove.disabled = false;
+          showSyncStatus(
+            error instanceof Error ? error.message : 'No se pudo quitar el juego.',
+            'error',
+          );
+        });
+    });
+    body.appendChild(remove);
+
+    root.appendChild(body);
+    return root;
+  }
+
+  async function refresh(): Promise<void> {
+    if (!state || !list) return;
+
+    showLoading(state, 'Cargando tu lista de deseos...');
+
+    try {
+      const data = await getWishlist({ limit: 50 });
+      state.innerHTML = '';
+      list.innerHTML = '';
+
+      if (toolbar) toolbar.hidden = false;
+      if (count) count.textContent = `${data.total} juego${data.total === 1 ? '' : 's'}`;
+
+      if (data.items.length === 0) {
+        const empty = document.createElement('div');
+        empty.className = 'state';
+        empty.textContent = 'Todavia no has marcado ningun juego.';
+        state.appendChild(empty);
+        return;
+      }
+
+      for (const item of data.items) {
+        list.appendChild(buildItem(item));
+      }
+    } catch (error) {
+      list.innerHTML = '';
+      renderError(state, describeError(error));
+    }
+  }
+
+  function bindSync(button: HTMLButtonElement | null, store: string): void {
+    button?.addEventListener('click', () => {
+      if (!button) return;
+      button.disabled = true;
+      showSyncStatus(`Sincronizando con ${store}...`, 'ok');
+
+      void syncWishlist(store)
+        .then((result) => {
+          if (result.status === 'not_configured') {
+            showSyncStatus(result.message, 'error');
+          } else {
+            showSyncStatus(
+              `Sincronizacion con ${store}: ${result.imported} importados, ${result.exported} exportados.`,
+              'ok',
+            );
+          }
+          void refresh();
+        })
+        .catch((error: unknown) => {
+          showSyncStatus(
+            error instanceof Error ? error.message : 'No se pudo sincronizar.',
+            'error',
+          );
+        })
+        .finally(() => {
+          button.disabled = false;
+        });
+    });
+  }
+
+  bindSync(document.querySelector<HTMLButtonElement>('[data-sync-gog]'), 'gog');
+  bindSync(document.querySelector<HTMLButtonElement>('[data-sync-nintendo]'), 'nintendo');
+
+  setSessionExpiredHandler(() => {
+    if (subtitle) subtitle.textContent = 'Tu sesion ha caducado.';
+    if (state) {
+      renderError(state, 'Inicia sesion para ver tu lista de deseos.');
+    }
+  });
+
+  if (!isAuthenticated()) {
+    if (subtitle) subtitle.textContent = 'Inicia sesion para ver tu lista de deseos.';
+    if (state) {
+      const wrapper = document.createElement('div');
+      wrapper.className = 'state';
+      const message = document.createElement('span');
+      message.textContent = 'Necesitas una sesion para usar la lista de ';
+      const link = document.createElement('a');
+      link.href = '/cuenta';
+      link.textContent = 'iniciar sesion';
+      message.appendChild(link);
+      message.appendChild(document.createTextNode('.'));
+      wrapper.appendChild(message);
+      state.appendChild(wrapper);
+    }
+  } else {
+    void refresh();
+  }
+</script>

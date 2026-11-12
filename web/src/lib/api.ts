@@ -24,6 +24,7 @@ export interface Offer {
   currency: string;
   url: string;
   dealScore: number | null;
+  historicalLowPrice?: number | null;
 }
 
 export interface CatalogItem {
@@ -101,6 +102,13 @@ export interface RouteEntry {
   };
 }
 
+export interface FranchiseSummary {
+  slug: string;
+  name: string;
+  description: string | null;
+  gameCount: number;
+}
+
 export interface FranchiseRoute {
   name: string;
   slug: string;
@@ -137,6 +145,83 @@ export type CatalogSort = 'recent' | 'quality' | 'discount';
 export type CatalogStore = 'steam' | 'gog' | 'epic';
 
 /* ------------------------------------------------------------------ */
+/* Publicaciones                                                       */
+/* ------------------------------------------------------------------ */
+
+export type PublicationCategory = 'guia' | 'ruta' | 'analisis' | 'noticia';
+
+export interface PublicationFranchise {
+  slug: string;
+  name: string;
+}
+
+export interface PublicationSummary {
+  id: string;
+  slug: string;
+  title: string;
+  subtitle: string | null;
+  excerpt: string;
+  category: PublicationCategory | string;
+  coverUrl: string | null;
+  authorName: string;
+  readingMinutes: number;
+  publishedAt: string;
+  franchise: PublicationFranchise | null;
+}
+
+export interface PublicationListResponse {
+  page: number;
+  limit: number;
+  total: number;
+  totalPages: number;
+  items: PublicationSummary[];
+}
+
+export interface PublicationCategoryItem {
+  slug: string;
+  name: string;
+  count: number;
+}
+
+export interface PublicationCategoriesResponse {
+  items: PublicationCategoryItem[];
+}
+
+export interface PublicationRelatedGame {
+  slug: string;
+  title: string;
+  coverUrl: string | null;
+  releaseDate: string | null;
+  bestPrice: number | null;
+  discountPercent: number | null;
+  storeName: string | null;
+  currency: string | null;
+}
+
+export interface PublicationRouteEntry {
+  position: number;
+  note: string | null;
+  game: {
+    slug: string;
+    title: string;
+    coverUrl: string | null;
+  };
+}
+
+export interface PublicationDetail extends PublicationSummary {
+  body: string;
+  updatedAt: string | null;
+  seoTitle: string | null;
+  seoDescription: string | null;
+  route: {
+    name: string;
+    slug: string;
+    entries: PublicationRouteEntry[];
+  } | null;
+  relatedGames: PublicationRelatedGame[];
+}
+
+/* ------------------------------------------------------------------ */
 /* Errores                                                             */
 /* ------------------------------------------------------------------ */
 
@@ -170,11 +255,18 @@ export function describeError(error: unknown): string {
 /* Peticiones                                                          */
 /* ------------------------------------------------------------------ */
 
-async function request<T>(path: string): Promise<T> {
+export async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
+  const headers = new Headers(options.headers ?? {});
+  headers.set('Accept', 'application/json');
+  if (options.body && !headers.has('Content-Type')) {
+    headers.set('Content-Type', 'application/json');
+  }
+
   let response: Response;
   try {
     response = await fetch(`${API_BASE_URL}${path}`, {
-      headers: { Accept: 'application/json' },
+      ...options,
+      headers,
       signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
     });
   } catch (error) {
@@ -186,6 +278,10 @@ async function request<T>(path: string): Promise<T> {
 
   if (!response.ok) {
     throw new ApiError(`HTTP ${response.status} en ${path}`, response.status);
+  }
+
+  if (response.status === 204) {
+    return undefined as T;
   }
 
   try {
@@ -225,10 +321,42 @@ export function getHottestDeals(limit = 20): Promise<HotDealsResponse> {
   return request<HotDealsResponse>(`/deals/hottest?limit=${limit}`);
 }
 
+export function listFranchises(): Promise<FranchiseSummary[]> {
+  return request<FranchiseSummary[]>('/franchises');
+}
+
 export function getFranchiseRoute(slug: string): Promise<FranchiseRoute> {
   return request<FranchiseRoute>(`/franchises/${encodeURIComponent(slug)}/route`);
 }
 
 export function getHealth(): Promise<HealthResponse> {
   return request<HealthResponse>('/health');
+}
+
+/* ------------------------------------------------------------------ */
+/* Publicaciones                                                       */
+/* ------------------------------------------------------------------ */
+
+export function getPublications(params: {
+  page?: number;
+  limit?: number;
+  category?: string;
+  franchise?: string;
+  q?: string;
+}): Promise<PublicationListResponse> {
+  const search = new URLSearchParams();
+  search.set('page', String(params.page ?? 1));
+  search.set('limit', String(params.limit ?? 12));
+  if (params.category) search.set('category', params.category);
+  if (params.franchise) search.set('franchise', params.franchise);
+  if (params.q) search.set('q', params.q);
+  return request<PublicationListResponse>(`/publications?${search.toString()}`);
+}
+
+export function getPublicationCategories(): Promise<PublicationCategoriesResponse> {
+  return request<PublicationCategoriesResponse>('/publications/categories');
+}
+
+export function getPublication(slug: string): Promise<PublicationDetail> {
+  return request<PublicationDetail>(`/publications/${encodeURIComponent(slug)}`);
 }

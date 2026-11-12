@@ -1,9 +1,6 @@
-import { Injectable, Logger } from '@nestjs/common';
-import { InjectRepository } from '@nestjs/typeorm';
+import type { Static } from '@sinclair/typebox';
 import { Repository } from 'typeorm';
 import { Game } from '../games/entities/game.entity.js';
-import { IgdbGameDto, IgdbSyncResultDto } from './dto/igdb-game.dto.js';
-import { IgdbSyncDto } from './dto/igdb-sync.dto.js';
 import { IgdbClient } from './igdb.client.js';
 import { IgdbBadQueryError } from './igdb.errors.js';
 import {
@@ -12,14 +9,14 @@ import {
   mapRawGameToDto,
   normalizeSlug,
 } from './mappers/igdb.mapper.js';
+import { IgdbGame, IgdbSyncBody, IgdbSyncResult } from '../schemas/igdb.js';
+import { createLogger } from '../logger.js';
 
-@Injectable()
 export class IgdbService {
-  private readonly logger = new Logger(IgdbService.name);
+  private readonly logger = createLogger('IgdbService');
 
   constructor(
     private readonly client: IgdbClient,
-    @InjectRepository(Game)
     private readonly gamesRepository: Repository<Game>,
   ) {}
 
@@ -31,7 +28,10 @@ export class IgdbService {
   /**
    * Busca juegos por nombre en IGDB y devuelve metadatos normalizados.
    */
-  async searchByName(term: string, limit = 20): Promise<IgdbGameDto[]> {
+  async searchByName(
+    term: string,
+    limit = 20,
+  ): Promise<Static<typeof IgdbGame>[]> {
     const safeLimit = Math.min(Math.max(limit, 1), 50);
     const query = [
       `fields ${IGDB_GAME_FIELDS};`,
@@ -46,7 +46,9 @@ export class IgdbService {
   /**
    * Obtiene los metadatos de un juego por su ID de IGDB.
    */
-  async findByIgdbId(igdbId: string | number): Promise<IgdbGameDto | null> {
+  async findByIgdbId(
+    igdbId: string | number,
+  ): Promise<Static<typeof IgdbGame> | null> {
     const numericId = Number(igdbId);
     if (!Number.isFinite(numericId)) {
       throw new IgdbBadQueryError(`El ID de IGDB "${igdbId}" no es valido`);
@@ -62,7 +64,9 @@ export class IgdbService {
    * Sincroniza un lote de juegos de IGDB contra la tabla `games`.
    * La operacion es idempotente: se hace upsert por `igdb_id`.
    */
-  async sync(dto: IgdbSyncDto): Promise<IgdbSyncResultDto> {
+  async sync(
+    dto: Static<typeof IgdbSyncBody>,
+  ): Promise<Static<typeof IgdbSyncResult>> {
     const limit = Math.min(Math.max(dto.limit ?? 50, 1), 50);
     const offset = Math.max(dto.offset ?? 0, 0);
 
@@ -106,7 +110,7 @@ export class IgdbService {
    * Inserta o actualiza un juego por `igdb_id` usando ON CONFLICT.
    * Devuelve false si no se pudo persistir por datos invalidos.
    */
-  private async upsertGame(dto: IgdbGameDto): Promise<boolean> {
+  private async upsertGame(dto: Static<typeof IgdbGame>): Promise<boolean> {
     const slug = await this.resolveUniqueSlug(dto.slug, dto.igdbId);
 
     await this.gamesRepository.upsert(

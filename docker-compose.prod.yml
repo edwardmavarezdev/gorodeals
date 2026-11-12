@@ -1,0 +1,79 @@
+# Composicion de produccion para el VPS de GoRoDeals.
+# No tocar el docker-compose.yml de desarrollo: este es el de despliegue.
+#
+# Variables de entorno: se leen de un fichero .env en la raiz del proyecto
+# (no versionado). Ver DEPLOY.md.
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: gorodeals-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${DB_USER:-gorodeals}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:?define DB_PASSWORD en el .env del VPS}
+      POSTGRES_DB: ${DB_NAME:-gorodeals}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER:-gorodeals} -d ${DB_NAME:-gorodeals}"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  api:
+    build:
+      context: ./api
+    container_name: gorodeals-api
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    env_file:
+      - .env
+    environment:
+      NODE_ENV: production
+      PORT: 3000
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_USER: ${DB_USER:-gorodeals}
+      DB_PASSWORD: ${DB_PASSWORD}
+      DB_NAME: ${DB_NAME:-gorodeals}
+    expose:
+      - "3000"
+
+  web:
+    build:
+      context: ./web
+      args:
+        PUBLIC_API_URL: /api
+    container_name: gorodeals-web
+    restart: unless-stopped
+    depends_on:
+      - api
+    ports:
+      - "127.0.0.1:8080:80"
+
+  # Aplica las migraciones pendientes y sale. Se ejecuta antes de reiniciar
+  # la API: `docker compose -f docker-compose.prod.yml run --rm migrate`.
+  migrate:
+    build:
+      context: ./api
+    container_name: gorodeals-migrate
+    profiles: ["tools"]
+    depends_on:
+      postgres:
+        condition: service_healthy
+    env_file:
+      - .env
+    environment:
+      NODE_ENV: production
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_USER: ${DB_USER:-gorodeals}
+      DB_PASSWORD: ${DB_PASSWORD}
+      DB_NAME: ${DB_NAME:-gorodeals}
+    command: ["node", "./node_modules/typeorm/cli.js", "-d", "dist/database/data-source.js", "migration:run"]
+
+volumes:
+  postgres_data:

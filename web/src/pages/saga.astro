@@ -10,29 +10,86 @@ import ErrorState from '../components/ErrorState.astro';
 
   <div id="franchise-state" data-franchise-state></div>
 
+  <ul class="franchise-grid" data-franchise-list hidden></ul>
+
   <ol class="route-list" data-route-list></ol>
 
   <ErrorState />
 </Base>
 
 <script>
-  import { getFranchiseRoute, describeError } from '../lib/api';
+  import { getFranchiseRoute, listFranchises, describeError } from '../lib/api';
   import { formatDate, renderError, setCover, showLoading } from '../lib/render';
 
   const slug = new URLSearchParams(window.location.search).get('slug') ?? '';
   const state = document.querySelector<HTMLElement>('[data-franchise-state]');
   const list = document.querySelector<HTMLElement>('[data-route-list]');
+  const franchiseList = document.querySelector<HTMLElement>('[data-franchise-list]');
   const title = document.querySelector<HTMLElement>('[data-franchise-title]');
   const description = document.querySelector<HTMLElement>('[data-franchise-description]');
+
+  /** Pinta el listado de sagas disponibles. */
+  async function loadFranchises(): Promise<void> {
+    if (!state || !franchiseList) return;
+
+    showLoading(state, 'Cargando sagas...');
+
+    try {
+      const franchises = await listFranchises();
+      state.innerHTML = '';
+      franchiseList.innerHTML = '';
+      franchiseList.hidden = false;
+
+      if (franchises.length === 0) {
+        const empty = document.createElement('li');
+        empty.className = 'state';
+        empty.textContent = 'Todavia no hay sagas registradas.';
+        franchiseList.appendChild(empty);
+        return;
+      }
+
+      for (const franchise of franchises) {
+        const item = document.createElement('li');
+        item.className = 'franchise-card';
+
+        const link = document.createElement('a');
+        link.className = 'franchise-card__link';
+        link.href = `/saga?slug=${encodeURIComponent(franchise.slug)}`;
+
+        const name = document.createElement('h2');
+        name.className = 'franchise-card__name';
+        name.textContent = franchise.name;
+        link.appendChild(name);
+
+        const count = document.createElement('span');
+        count.className = 'franchise-card__count';
+        count.textContent = `${franchise.gameCount} juegos`;
+        link.appendChild(count);
+
+        if (franchise.description) {
+          const text = document.createElement('p');
+          text.className = 'franchise-card__description';
+          text.textContent = franchise.description;
+          link.appendChild(text);
+        }
+
+        item.appendChild(link);
+        franchiseList.appendChild(item);
+      }
+    } catch (error) {
+      renderError(state, describeError(error));
+    }
+  }
 
   async function load(): Promise<void> {
     if (!state || !list) return;
 
     if (!slug) {
-      renderError(state, 'Falta el parametro "slug" en la URL.');
+      await loadFranchises();
       return;
     }
 
+    if (franchiseList) franchiseList.hidden = true;
     showLoading(state, 'Cargando ruta de la saga...');
 
     try {

@@ -1,8 +1,16 @@
 # GoRoDeals API
 
-API NestJS + PostgreSQL para seguimiento de precios de videojuegos y rutas de sagas.
+API **Fastify 5** + PostgreSQL para seguimiento de precios de videojuegos y rutas de sagas.
 
-Estado actual: **Fases 1, 2 y 3 del roadmap completas** (configuración, modelo de datos e ingesta de IGDB, Steam y sincronización de precios). No hay autenticación ni endpoints públicos de catálogo todavía (Fases 4 y 5).
+Estado actual: **Fase 7 del roadmap completada**: el backend es **Fastify 5**
+de punta a punta (controladores, servicios, esquemas TypeBox, hooks, plugins
+y planificador). La capa de datos sigue intacta (TypeORM, entidades y
+migraciones sin cambios).
+
+> El contrato de la API esta congelado en `test/fixtures/contract.json`: guarda
+> la forma (estado, claves y tipos) de la respuesta de cada endpoint y se
+> capturo del backend de NestJS antes de retirarlo. La suite de contrato
+> (`npm run test:e2e`) compara la respuesta real con esos fixtures.
 
 ---
 
@@ -10,7 +18,7 @@ Estado actual: **Fases 1, 2 y 3 del roadmap completas** (configuración, modelo 
 
 | Herramienta | Versión | Para qué |
 |---|---|---|
-| Node.js | 20 LTS o superior | API |
+| Node.js | 22 LTS o superior | API |
 | npm | 10 o superior | Dependencias |
 | Docker | con Docker Compose | PostgreSQL 16 local |
 
@@ -74,13 +82,72 @@ Compila el proyecto y aplica las migraciones pendientes. La primera vez aplica `
 ### 2.4 Arrancar la API
 
 ```bash
-npm run start:dev
+npm run build
+npm start                 # o: npm run start:dev (recompila y reinicia al guardar)
 ```
 
 - API: `http://localhost:3000`
-- Swagger: `http://localhost:3000/docs` (JSON en `/docs-json`)
+- Swagger: `http://localhost:3000/docs` (JSON en `/docs/json`)
 
-En los logs debe aparecer el registro del cron del PriceSyncModule y las rutas mapeadas (`/igdb/...`, `/steam/...`, `/price-sync/...`).
+En los logs debe aparecer el registro del cron de precios
+(`Cron de sincronizacion de precios registrado: "0 6 * * *" (UTC)`) y las
+rutas mapeadas (`/catalog`, `/games`, `/auth`, `/wishlist`, `/steam/...`,
+`/igdb/...`, `/price-sync/...`).
+
+#### Arquitectura del proyecto
+
+```
+src/
+  server.ts        buildServer(): plugins, hooks y rutas (funcion pura)
+  index.ts         listen() y apagado ordenado
+  config.ts        configuracion tipada desde process.env + dotenv
+  context.ts       buildServices(): grafo de servicios construido a mano
+  errors.ts        excepciones HTTP (BadRequest, NotFound, Unauthorized, ...)
+  logger.ts        createLogger('<Servicio>'): logger con contexto
+  plugins/         database, core, cors, rate-limit, swagger, scheduler
+  hooks/           auth (deny by default), admin, timing, error
+  schemas/         esquemas TypeBox (body, query, params, response)
+  controllers/     un plugin de rutas por dominio
+  <dominio>/       servicios, entidades y migraciones por dominio
+  seed/            scripts de CLI (seed, seed:publications, sync:random)
+```
+
+- La autenticacion es **deny by default**: toda ruta exige access token
+  salvo las que declaran `config: { auth: 'disabled' }`.
+- La validacion la hace **Ajv** con los esquemas de TypeBox: los mismos
+  esquemas validan y documentan (OpenAPI en `/docs`) y de sus tipos salen los
+  de entrada y de salida de los servicios (`Static<typeof Esquema>`).
+- Los errores se lanzan con las excepciones de `src/errors.ts` y se devuelven
+  como `{ statusCode, message, error }`, el mismo cuerpo que devolvia NestJS.
+- Los endpoints administrativos exigen la cabecera `x-admin-secret` y, si
+  el secreto no esta configurado, quedan cerrados (403). El hook va en
+  `preValidation` para comprobar el secreto **antes** de validar el cuerpo,
+  que era el orden del guard en NestJS.
+
+#### Paridad de contrato
+
+```bash
+npm run test:e2e
+```
+
+La suite de contrato (`test/contract.e2e-spec.ts`) recorre los endpoints
+declarados en `test/contract.json` y compara la respuesta real con la forma
+guardada en `test/fixtures/contract.json` (estado, claves y tipos). No imprime
+valores de respuesta, solo diferencias, para no filtrar tokens ni datos
+personales.
+
+Para regenerar los fixtures contra otra base de desarrollo:
+
+```bash
+node tools/capture-fixtures.mjs http://127.0.0.1:3000 > test/fixtures/contract.json
+```
+
+Para comparar dos instancias de la API entre si (por ejemplo, la local y la
+desplegada):
+
+```bash
+node tools/compare-parity.mjs http://127.0.0.1:3031 http://127.0.0.1:3032
+```
 
 ---
 
@@ -198,7 +265,7 @@ El parámetro `windowMonths` del histórico se valida: un valor fuera del rango
 
 ---
 
-## 3.4 Catalogo para el frontend (Fase 5)
+### 3.4 Catalogo para el frontend (Fase 5)
 
 Endpoints de lectura que consume el frontend Astro. Todos están documentados
 en Swagger (`/docs`) y devuelven el contrato de JSON fijo del roadmap.
@@ -228,7 +295,111 @@ del score de calidad, el descuento y la cercanía al mínimo histórico. Cuando
 `store_products.deal_score` es `NULL`, el score se calcula en memoria y no se
 persiste.
 
-### 3.5 Seed del catalogo
+### 3.5 Publicaciones (guias y rutas de saga)
+
+Contenido editorial para responder a "por donde empiezo esta saga". Vive en las
+tablas `publications` y `publication_games` y lo consume el frontend en
+`/publicaciones` y `/publicacion?slug=<slug>`.
+
+```bash
+# Listado paginado con filtros (page, limit<=50, category, franchise, q)
+curl 'http://localhost:3000/publications?page=1&limit=6'
+
+# Categorias con el numero de publicaciones de cada una
+curl 'http://localhost:3000/publications/categories'
+
+# Publicacion completa (cuerpo, saga relacionada y juegos citados)
+curl 'http://localhost:3000/publications/como-empezar-la-saga-like-a-dragon'
+```
+
+Categorias admitidas: `guia`, `ruta`, `analisis`, `noticia`. Una publicación
+sin `is_published` o inexistente devuelve `404`.
+
+El seed editorial se carga por separado y es idempotente (upsert por `slug`):
+
+```bash
+npm run seed:publications
+```
+
+### 3.6 Cuentas de usuario y wishlist (Fase 4)
+
+Registro e inicio de sesion con email y contrasena. La contrasena se guarda
+con argon2id; el `accessToken` es un JWT de vida corta (`JWT_ACCESS_TTL`, 15
+minutos por defecto) y el `refreshToken` es opaco, se persiste solo su
+SHA-256 y rota en cada uso.
+
+```bash
+# Registro (201)
+curl -s -X POST http://localhost:3000/auth/register \
+  -H 'Content-Type: application/json' \
+  -d '{"email":"ana@example.com","password":"UnaClaveLarga1","displayName":"Ana"}'
+
+# Inicio de sesion (200)
+curl -s -X POST http://localhost:3000/auth/login \
+  -H 'Content-Type: application/json' \
+  -d '{"email":"ana@example.com","password":"UnaClaveLarga1"}'
+
+# Sesion actual (200 con cabecera Bearer)
+curl -s http://localhost:3000/auth/me -H "Authorization: Bearer $ACCESS_TOKEN"
+
+# Renovar el access token (200)
+curl -s -X POST http://localhost:3000/auth/refresh \
+  -H 'Content-Type: application/json' \
+  -d "{\"refreshToken\":\"$REFRESH_TOKEN\"}"
+
+# Cerrar la sesion actual (200) o todas las sesiones (200)
+curl -s -X POST http://localhost:3000/auth/logout \
+  -H 'Content-Type: application/json' \
+  -d "{\"refreshToken\":\"$REFRESH_TOKEN\"}"
+curl -s -X POST http://localhost:3000/auth/logout-all -H "Authorization: Bearer $ACCESS_TOKEN"
+```
+
+Reglas de sesion:
+
+- El `refreshToken` se rota en cada `POST /auth/refresh`: el anterior queda
+  revocado y se emite uno nuevo.
+- Presentar un token ya revocado se trata como robo de token: se revocan
+  **todas** las sesiones del usuario y la respuesta es 401.
+- `POST /auth/logout` es idempotente: si el token ya estaba revocado
+  responde 200 con `{"revoked": 0}`.
+
+Login social (ambos necesitan credenciales en `.env`):
+
+| Variable | Endpoint de inicio | Callback |
+|---|---|---|
+| Google (`GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, `GOOGLE_CALLBACK_URI`) | `GET /auth/google` | `GET /auth/google/callback` |
+| Steam OpenID 2.0 (`STEAM_OPENID_KEY_URL` opcional) | `GET /auth/steam` | `GET /auth/steam/callback` |
+
+Google usa OAuth 2.0 con PKCE (S256) y un `state` de un solo uso. Si la
+identidad social corresponde a una cuenta local existente, la API responde
+409 con un `linkToken` que debe confirmarse en `POST /auth/confirm-link`
+(enviando la contrasena de la cuenta local) para vincular ambas identidades.
+
+La lista de deseos exige sesion:
+
+```bash
+# Listar (200). Acepta page, limit y store
+curl -s "http://localhost:3000/wishlist?page=1&limit=24" -H "Authorization: Bearer $ACCESS_TOKEN"
+
+# Anadir por gameId o por slug (201). Repetir el mismo juego devuelve 409
+curl -s -X POST http://localhost:3000/wishlist \
+  -H "Authorization: Bearer $ACCESS_TOKEN" -H 'Content-Type: application/json' \
+  -d '{"slug":"like-a-dragon-island"}'
+
+# Quitar (204), por id de juego o por slug
+curl -s -X DELETE "http://localhost:3000/wishlist/$GAME_ID" -H "Authorization: Bearer $ACCESS_TOKEN"
+curl -s -X DELETE "http://localhost:3000/wishlist/slug/like-a-dragon-island" -H "Authorization: Bearer $ACCESS_TOKEN"
+
+# Sincronizar con una tienda externa (200)
+curl -s -X POST http://localhost:3000/wishlist/sync/gog -H "Authorization: Bearer $ACCESS_TOKEN"
+```
+
+La sincronizacion con GOG y Nintendo devuelve `status: "not_configured"` con
+el motivo (por ejemplo, `Falta configurar WISHLIST_GOG_API_KEY`) en vez de
+fallar: las APIs de wishlist de esas tiendas no estan disponibles y sin un
+cliente real y credenciales de prueba no es verificable.
+
+### 3.7 Seed del catalogo
 
 ```bash
 npm run seed
@@ -245,7 +416,7 @@ seed no duplica filas ni toca los datos ajenos.
 
 ---
 
-### 3.6 Sincronizar juegos de prueba (Steam y Nintendo Switch)
+### 3.8 Sincronizar juegos de prueba (Steam y Nintendo Switch)
 
 Herramienta de carga de datos para probar el catálogo y las gráficas: trae
 juegos aleatorios de PC (Steam) y de Nintendo Switch, crea el juego y su
@@ -353,6 +524,8 @@ select count(*) from price_history;
 npm run build        # compilacion (tsc)
 npm run lint         # eslint
 npm test             # tests unitarios (jest)
+npm run test:e2e     # tests de extremo a extremo con fastify.inject()
+                     #   (incluye la suite de contrato)
 npm run test:cov     # cobertura
 npm run format       # prettier
 npm run seed         # seed idempotente del catalogo (Fase 5)
@@ -364,18 +537,35 @@ npm run seed         # seed idempotente del catalogo (Fase 5)
 
 ```
 api/src/
-├── config/          configuration.ts + validation.ts (Joi)
-├── database/        data-source.ts, migraciones, transformers de TypeORM
-├── games/           entidad Game
+├── server.ts        buildServer(): plugins, hooks y rutas (funcion pura)
+├── index.ts         listen() y apagado ordenado
+├── config.ts        configuracion tipada desde process.env + dotenv
+├── context.ts       buildServices(): grafo de servicios construido a mano
+├── errors.ts        excepciones HTTP propias (BadRequest, NotFound, ...)
+├── logger.ts        createLogger('<Servicio>'): logger con contexto
+├── config/          configuration.ts (estructura y nombres del .env)
+├── database/        data-source.ts, migraciones y transformers de TypeORM
+├── plugins/         database, core, cors, rate-limit, swagger, scheduler
+├── hooks/           auth (deny by default), admin, timing, error
+├── schemas/         esquemas TypeBox (body, query, params, response)
+├── controllers/     un plugin de rutas por dominio
+├── games/           entidad Game, catalogo, ficha y resumen de sagas
 ├── store-products/  entidad StoreProduct
 ├── prices/          entidad PriceHistory
-├── franchises/      entidades Franchise y FranchisePlayOrder
-├── igdb/            IgdbModule: OAuth Twitch, Apicalypse, mapeo a Game
-├── steam/           SteamModule: appdetails, upsert en StoreProduct
-└── price-sync/      PriceSyncModule: cron diario y registro en PriceHistory
-├── app.controller.ts  endpoint de salud GET /health
+├── franchises/      entidades Franchise y FranchisePlayOrder, ruta de saga
+├── igdb/            cliente OAuth Twitch, consultas Apicalypse, mapeo a Game
+├── steam/           cliente appdetails, cache y upsert en StoreProduct
+├── price-sync/      cron diario, proveedores de precios y PriceHistory
+├── publications/    publicaciones editoriales (guias y rutas de saga)
+├── auth/            registro, login, JWT, refresh, Steam y Google
+├── users/           entidades User y SocialAccount
+├── wishlist/        lista de deseos y sincronizacion con tiendas
+├── seed/            scripts de CLI (seed, seed:publications, sync:random)
 tools/igdb-stub.mjs  stub local de Twitch + IGDB para desarrollo
 ```
+
+No queda ninguna dependencia de NestJS: los servicios se construyen a mano en
+`src/context.ts` y se inyectan en los plugins de rutas con `fastify-plugin`.
 
 ---
 
@@ -393,6 +583,19 @@ acepta peticiones desde el navegador (pero `curl` sigue funcionando).
 
 **Steam devuelve 422.** Ese appid no publica precio en la region configurada (juegos gratis, o sin precio en `cc=us`). Cambia `STEAM_COUNTRY_CODE` para probar otra region.
 
-**El puerto 3000 está ocupado.** Arranca con `PORT=3010 npm run start:dev`.
+**El puerto 3000 está ocupado.** Arranca con `PORT=3010 npm start`.
+
+**Jest no puede cargar un modulo ESM de `node_modules`.** Para que los tests
+de Fastify (`fastify.inject()`) funcionen, `transformIgnorePatterns` deja
+transformar unas pocas dependencias ESM (`cookie`, `content-disposition`). Si
+anades un plugin nuevo de Fastify que traiga ESM, ampliable esa lista.
 
 **`synchronize` está en `false` a propósito.** El esquema solo cambia por migraciones; no lo actives.
+
+**`POST /auth/refresh` devuelve 401 aunque el refresh token sea válido.** Se
+presenta un token ya rotado o revocado: la API lo trata como robo de token y
+revoca todas las sesiones del usuario. Vuelve a iniciar sesion.
+
+**El frontend no puede llamar a la API desde el navegador.** Revisa
+`CORS_ORIGIN` (debe incluir el origen del frontend, por ejemplo
+`http://localhost:4321`) y `PUBLIC_API_URL` del lado del frontend.

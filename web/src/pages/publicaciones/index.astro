@@ -1,0 +1,180 @@
+---
+import Base from '../../layouts/Base.astro';
+import PublicationCard from '../../components/PublicationCard.astro';
+import Pagination from '../../components/Pagination.astro';
+import ErrorState from '../../components/ErrorState.astro';
+---
+
+<Base
+  title="Publicaciones - GoRoDeals"
+  description="Guias y recomendaciones para empezar las sagas de videojuegos sin perderte."
+  current="publicaciones"
+>
+  <h1 class="page-title">Publicaciones</h1>
+  <p class="page-subtitle">
+    Guias, rutas de saga y analisis para saber por donde empezar cada historia.
+  </p>
+
+  <div id="publications-state" data-publications-state></div>
+
+  <div class="pub-layout">
+    <div>
+      <section class="pub-feature" data-pub-feature hidden>
+        <div class="pub-feature__cover" role="img" data-pub-feature-cover></div>
+        <div class="pub-feature__body">
+          <span class="pub-tag" data-pub-feature-tag></span>
+          <h2 class="pub-card__title">
+            <a href="#" data-pub-feature-link data-pub-feature-title></a>
+          </h2>
+          <p class="pub-card__excerpt" data-pub-feature-excerpt></p>
+          <div class="pub-card__footer">
+            <span data-pub-feature-author></span>
+            <span data-pub-feature-date></span>
+            <span data-pub-feature-reading></span>
+          </div>
+        </div>
+      </section>
+
+      <div class="pub-list" data-publications-list>
+        <div class="state state--loading">Cargando publicaciones...</div>
+      </div>
+
+      <div id="publications-pagination" data-publications-pagination></div>
+    </div>
+
+    <aside class="pub-sidebar">
+      <h3>Categorias</h3>
+      <div data-pub-categories></div>
+    </aside>
+  </div>
+
+  <PublicationCard />
+  <Pagination />
+  <ErrorState />
+</Base>
+
+<script>
+  import {
+    getPublicationCategories,
+    getPublications,
+    describeError,
+  } from '../../lib/api';
+  import {
+    categoryLabel,
+    formatDate,
+    renderCategoryNav,
+    renderError,
+    renderPagination,
+    renderPublicationList,
+    setCover,
+    showLoading,
+  } from '../../lib/render';
+
+  const state = document.querySelector<HTMLElement>('[data-publications-state]');
+  const list = document.querySelector<HTMLElement>('[data-publications-list]');
+  const pagination = document.querySelector<HTMLElement>('[data-publications-pagination]');
+  const categories = document.querySelector<HTMLElement>('[data-pub-categories]');
+  const feature = document.querySelector<HTMLElement>('[data-pub-feature]');
+
+  const params = new URLSearchParams(window.location.search);
+  const page = Math.max(1, Number(params.get('page') ?? '1') || 1);
+  const limit = Math.max(1, Math.min(50, Number(params.get('limit') ?? '12') || 12));
+  const category = params.get('category') ?? '';
+  const franchise = params.get('franchise') ?? '';
+
+  function renderFeature(item: {
+    slug: string;
+    title: string;
+    excerpt: string;
+    category: string;
+    coverUrl: string | null;
+    authorName: string;
+    readingMinutes: number;
+    publishedAt: string;
+  }): void {
+    if (!feature) return;
+
+    const href = `/publicacion?slug=${encodeURIComponent(item.slug)}`;
+    const link = feature.querySelector<HTMLAnchorElement>('[data-pub-feature-link]');
+    if (link) link.href = href;
+
+    setCover(
+      feature.querySelector<HTMLElement>('[data-pub-feature-cover]'),
+      item.coverUrl,
+      item.title,
+      'Sin imagen',
+    );
+
+    const tag = feature.querySelector('[data-pub-feature-tag]');
+    if (tag) {
+      tag.textContent = categoryLabel(item.category);
+      tag.classList.add(`pub-tag--${item.category}`);
+    }
+
+    const title = feature.querySelector('[data-pub-feature-title]');
+    if (title) title.textContent = item.title;
+
+    const excerpt = feature.querySelector('[data-pub-feature-excerpt]');
+    if (excerpt) excerpt.textContent = item.excerpt;
+
+    const author = feature.querySelector('[data-pub-feature-author]');
+    if (author) author.textContent = item.authorName;
+
+    const date = feature.querySelector('[data-pub-feature-date]');
+    if (date) date.textContent = formatDate(item.publishedAt);
+
+    const reading = feature.querySelector('[data-pub-feature-reading]');
+    if (reading) reading.textContent = `${item.readingMinutes} min de lectura`;
+
+    feature.hidden = false;
+  }
+
+  async function loadCategories(): Promise<void> {
+    if (!categories) return;
+    try {
+      const data = await getPublicationCategories();
+      renderCategoryNav(categories, data.items ?? [], category, franchise);
+    } catch {
+      // El menu lateral es complementario: si falla, el listado sigue.
+    }
+  }
+
+  async function load(): Promise<void> {
+    if (!state || !list || !pagination) return;
+    state.innerHTML = '';
+    pagination.innerHTML = '';
+    showLoading(list, 'Cargando publicaciones...');
+
+    try {
+      const data = await getPublications({
+        page,
+        limit,
+        category: category || undefined,
+        franchise: franchise || undefined,
+      });
+
+      const items = data.items ?? [];
+
+      // La primera publicacion de la pagina se muestra destacada.
+      if (items.length > 0 && page === 1) {
+        renderFeature(items[0]);
+      } else if (feature) {
+        feature.hidden = true;
+      }
+
+      renderPublicationList(list, page === 1 ? items.slice(1) : items);
+
+      if (items.length === 0) {
+        list.innerHTML = '<div class="state">No hay publicaciones para este filtro.</div>';
+      }
+
+      renderPagination(pagination, data, params, '/publicaciones', 'publicaciones');
+    } catch (error) {
+      list.innerHTML = '';
+      renderError(state, describeError(error));
+    }
+  }
+
+  void load();
+  void loadCategories();
+</script>

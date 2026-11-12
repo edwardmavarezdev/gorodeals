@@ -1,7 +1,8 @@
-import { Injectable, Logger, OnModuleDestroy } from '@nestjs/common';
-import { ConfigService } from '@nestjs/config';
+import type { Static } from '@sinclair/typebox';
 import { randomUUID } from 'node:crypto';
 import { DataSource } from 'typeorm';
+import type { AppConfig } from '../config.js';
+import { createLogger } from '../logger.js';
 import { IgdbService } from '../igdb/igdb.service.js';
 import { StoreName } from '../store-products/entities/store-product.entity.js';
 import {
@@ -14,7 +15,11 @@ import {
   StorePriceSnapshot,
   StoreSyncResult,
 } from './sync.types.js';
-import { PriceSyncStatusDto } from './dto/price-sync-run-result.dto.js';
+import {
+  PriceSyncCatalogResult as PriceSyncCatalogResultSchema,
+  PriceSyncRunResult as PriceSyncRunResultSchema,
+  PriceSyncStatus as PriceSyncStatusSchema,
+} from '../schemas/price-sync.js';
 
 /** Identificador logico del lock de sync en la tabla `price_sync_locks`. */
 const LOCK_ID = 'price_sync';
@@ -34,34 +39,25 @@ export interface PriceSyncRunOptions {
   maxProducts?: number;
 }
 
-/** Resumen de la fase de catalogo de IGDB. */
-export interface CatalogSyncResult {
-  pages: number;
-  fetched: number;
-  upserted: number;
-  skipped: number;
-  errors: number;
-}
+/**
+ * Resumen de la fase de catalogo de IGDB.
+ *
+ * El tipo sale del esquema TypeBox (`src/schemas/price-sync.ts`), que es el
+ * mismo que declara la respuesta de la API: asi no puede divergir el
+ * contrato del servicio del contrato publicado.
+ */
+export type CatalogSyncResult = Static<typeof PriceSyncCatalogResultSchema>;
 
-/** Resultado global de una ejecucion del sync. */
-export interface PriceSyncRunResult {
-  startedAt: string;
-  finishedAt: string;
-  durationMs: number;
-  skipped: boolean;
-  skipReason: string | null;
-  catalog: CatalogSyncResult | null;
-  stores: StoreSyncResult[];
-  totals: {
-    processed: number;
-    updated: number;
-    changed: number;
-    unchanged: number;
-    historyInserted: number;
-    unavailable: number;
-    errors: number;
-  };
-}
+/**
+ * Resultado global de una ejecucion del sync.
+ *
+ * Derivado del esquema TypeBox de la respuesta, igual que
+ * `CatalogSyncResult`.
+ */
+export type PriceSyncRunResult = Static<typeof PriceSyncRunResultSchema>;
+
+/** Estado del modulo: configuracion efectiva y ultima ejecucion. */
+export type PriceSyncStatus = Static<typeof PriceSyncStatusSchema>;
 
 /**
  * Orquestador del sync de precios.
@@ -79,9 +75,8 @@ export interface PriceSyncRunResult {
  * (UTC) y `ON CONFLICT DO NOTHING` sobre (store_product_id, recorded_at), de
  * modo que reejecutar el sync el mismo dia no duplica filas.
  */
-@Injectable()
-export class PriceSyncService implements OnModuleDestroy {
-  private readonly logger = new Logger(PriceSyncService.name);
+export class PriceSyncService {
+  private readonly logger = createLogger('PriceSyncService');
 
   /** Guarda en memoria: evita solapamientos dentro de la misma instancia. */
   private running = false;
@@ -96,7 +91,7 @@ export class PriceSyncService implements OnModuleDestroy {
 
   constructor(
     private readonly dataSource: DataSource,
-    private readonly config: ConfigService,
+    private readonly config: AppConfig,
     private readonly historyService: PriceHistoryService,
     private readonly steamProvider: SteamPriceProvider,
     private readonly igdbService: IgdbService,
@@ -117,15 +112,15 @@ export class PriceSyncService implements OnModuleDestroy {
   /**
    * Configuracion efectiva del modulo.
    *
-   * El tipo de retorno es explicito (`PriceSyncStatusDto`): si el contrato
-   * cambia, el compilador lo detecta en vez de devolver `undefined` en
-   * silencio.
+   * El tipo de retorno es explicito (el esquema TypeBox del estado): si el
+   * contrato cambia, el compilador lo detecta en vez de devolver `undefined`
+   * en silencio.
    */
-  getStatus(): PriceSyncStatusDto {
+  getStatus(): PriceSyncStatus {
     return {
-      cron: this.config.get<string>('priceSync.cron') ?? '0 6 * * *',
+      cron: this.config.priceSync.cron,
       timezone: 'UTC',
-      enabled: this.config.get<boolean>('priceSync.enabled') ?? true,
+      enabled: this.config.priceSync.enabled,
       batchSize: this.resolveBatchSize(),
       storeNames: this.resolveStoreNames(),
       running: this.running,
@@ -540,7 +535,7 @@ export class PriceSyncService implements OnModuleDestroy {
 
   /** Umbral de fallos tecnicos que aborta el ciclo de una tienda. */
   private resolveMaxFailureRate(): number {
-    const value = this.config.get<number>('priceSync.maxFailureRate') ?? 0.5;
+    const value = this.config.priceSync.maxFailureRate;
     return Math.min(Math.max(value, 0), 1);
   }
 
@@ -586,8 +581,7 @@ export class PriceSyncService implements OnModuleDestroy {
   private async acquireLock(
     owner: string,
   ): Promise<{ acquired: boolean; error: string | null }> {
-    const timeoutSeconds =
-      this.config.get<number>('priceSync.lockTimeoutSeconds') ?? 3600;
+    const timeoutSeconds = this.config.priceSync.lockTimeoutSeconds;
     try {
       const rows = await this.dataSource.query<Array<{ id: string }>>(
         `
@@ -656,8 +650,7 @@ export class PriceSyncService implements OnModuleDestroy {
     }
 
     const now = Date.now();
-    const timeoutMs =
-      (this.config.get<number>('priceSync.lockTimeoutSeconds') ?? 3600) * 1000;
+    const timeoutMs = this.config.priceSync.lockTimeoutSeconds * 1000;
     const intervalMs = Math.max(30_000, Math.floor(timeoutMs / 3));
 
     if (
@@ -687,7 +680,7 @@ export class PriceSyncService implements OnModuleDestroy {
   }
 
   private resolveStoreNames(): StoreName[] {
-    const raw = this.config.get<string>('priceSync.storeNames') ?? 'steam';
+    const raw = this.config.priceSync.storeNames;
     const names = raw
       .split(',')
       .map((value) => value.trim().toLowerCase())
@@ -699,12 +692,12 @@ export class PriceSyncService implements OnModuleDestroy {
   }
 
   private resolveBatchSize(): number {
-    const value = this.config.get<number>('priceSync.batchSize') ?? 200;
+    const value = this.config.priceSync.batchSize;
     return Math.max(1, value);
   }
 
   private resolveCatalogPages(): number {
-    const value = this.config.get<number>('priceSync.catalogPages') ?? 0;
+    const value = this.config.priceSync.catalogPages;
     return Math.max(0, value);
   }
 
@@ -743,8 +736,14 @@ export class PriceSyncService implements OnModuleDestroy {
    * nuestro), asi que se puede llamar sin miedo aunque el ciclo ya haya
    * terminado. Sin esto, tras un reinicio ninguna instancia podria
    * sincronizar hasta que el lock caducase (una hora por defecto).
+   *
+   * En NestJS esto era `onModuleDestroy()`, invocado por el contenedor de
+   * inyeccion al cerrar el modulo. Fastify NO invoca este metodo por su
+   * cuenta: lo llama el hook `onClose` del planificador
+   * (`src/plugins/scheduler.ts`), que corre antes de cerrar la base de
+   * datos.
    */
-  async onModuleDestroy(): Promise<void> {
+  async onDestroy(): Promise<void> {
     if (this.lockOwner) {
       this.logger.warn(
         'El proceso se cierra con una sincronizacion en curso: se libera el lock',

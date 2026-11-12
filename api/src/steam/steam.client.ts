@@ -1,5 +1,5 @@
-import { Injectable, Logger } from '@nestjs/common';
-import { ConfigService } from '@nestjs/config';
+import type { AppConfig } from '../config.js';
+import { createLogger } from '../logger.js';
 import { SteamAppDetails, SteamAppDetailsResponse } from './steam.types.js';
 import { TtlLruCache } from './steam-cache.js';
 import {
@@ -29,51 +29,47 @@ import {
  *   cambian pocas veces al dia y el sync es diario, pero un `Map` sin tope
  *   acababa en OOM con catalogos grandes (~174 MB a 100k appids).
  */
-@Injectable()
 export class SteamClient {
-  private readonly logger = new Logger(SteamClient.name);
+  private readonly logger = createLogger('SteamClient');
   private readonly cache: TtlLruCache<SteamAppDetails | null>;
 
-  constructor(private readonly config: ConfigService) {
+  constructor(private readonly config: AppConfig) {
     this.cache = new TtlLruCache<SteamAppDetails | null>(
-      this.config.get<number>('steam.cacheTtlMs') ?? 15 * 60 * 1000,
-      this.config.get<number>('steam.cacheMaxEntries') ?? 10_000,
+      this.config.steam.cacheTtlMs,
+      this.config.steam.cacheMaxEntries,
     );
   }
 
   private get baseUrl(): string {
-    return (
-      this.config.get<string>('steam.baseUrl') ??
-      'https://store.steampowered.com/api'
-    );
+    return this.config.steam.baseUrl;
   }
 
   private get countryCode(): string {
-    return this.config.get<string>('steam.countryCode') ?? 'us';
+    return this.config.steam.countryCode;
   }
 
   private get language(): string {
-    return this.config.get<string>('steam.language') ?? 'es';
+    return this.config.steam.language;
   }
 
   private get timeoutMs(): number {
-    return this.config.get<number>('steam.timeoutMs') ?? 12_000;
+    return this.config.steam.timeoutMs;
   }
 
   private get maxRetries(): number {
-    return this.config.get<number>('steam.maxRetries') ?? 3;
+    return this.config.steam.maxRetries;
   }
 
   private get batchSize(): number {
-    return this.config.get<number>('steam.batchSize') ?? 50;
+    return this.config.steam.batchSize;
   }
 
   private get concurrency(): number {
-    return this.config.get<number>('steam.concurrency') ?? 4;
+    return this.config.steam.concurrency;
   }
 
   private get interBatchDelayMs(): number {
-    return this.config.get<number>('steam.interBatchDelayMs') ?? 250;
+    return this.config.steam.interBatchDelayMs;
   }
 
   private cacheKey(appId: number): string {

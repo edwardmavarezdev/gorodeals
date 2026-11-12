@@ -1,5 +1,3 @@
-import { Injectable, Logger } from '@nestjs/common';
-import { ConfigService } from '@nestjs/config';
 import {
   IgdbAuthError,
   IgdbBadQueryError,
@@ -8,6 +6,8 @@ import {
   IgdbUnavailableError,
 } from './igdb.errors.js';
 import type { IgdbRawGame, IgdbTokenResponse } from './igdb.types.js';
+import type { AppConfig } from '../config.js';
+import { createLogger } from '../logger.js';
 
 /** IGDB permite 4 peticiones por segundo y por Client ID. */
 const REQUESTS_PER_SECOND = 4;
@@ -27,9 +27,8 @@ const TOKEN_RENEWAL_MARGIN_MS = 60_000;
  * - Throttle global de 4 req/s compartido por todas las llamadas.
  * - Reintentos con backoff exponencial y jitter ante 429/5xx.
  */
-@Injectable()
 export class IgdbClient {
-  private readonly logger = new Logger(IgdbClient.name);
+  private readonly logger = createLogger('IgdbClient');
   private readonly clientId: string;
   private readonly clientSecret: string;
   private readonly tokenUrl: string;
@@ -47,15 +46,12 @@ export class IgdbClient {
   /** Timestamp (ms) del inicio de la ultima peticion enviada a IGDB. */
   private lastRequestAt = 0;
 
-  constructor(private readonly config: ConfigService) {
-    this.clientId = this.config.get<string>('igdb.clientId') ?? '';
-    this.clientSecret = this.config.get<string>('igdb.clientSecret') ?? '';
-    this.tokenUrl =
-      this.config.get<string>('igdb.tokenUrl') ??
-      'https://id.twitch.tv/oauth2/token';
-    this.apiUrl =
-      this.config.get<string>('igdb.apiUrl') ?? 'https://api.igdb.com/v4/games';
-    this.timeoutMs = this.config.get<number>('igdb.timeoutMs') ?? 10_000;
+  constructor(private readonly config: AppConfig) {
+    this.clientId = this.config.igdb.clientId;
+    this.clientSecret = this.config.igdb.clientSecret;
+    this.tokenUrl = this.config.igdb.tokenUrl;
+    this.apiUrl = this.config.igdb.apiUrl;
+    this.timeoutMs = this.config.igdb.timeoutMs;
   }
 
   /** Espera asincrona; se sobreescribe en pruebas para eliminar el retardo real. */

@@ -1,0 +1,394 @@
+---
+import Base from '../layouts/Base.astro';
+---
+
+<Base title="Mi cuenta - GoRoDeals">
+  <h1 class="page-title">Mi cuenta</h1>
+  <p class="page-subtitle" data-account-subtitle>
+    Entra para tener tu lista de deseos y tus sesiones.
+  </p>
+
+  <div class="account-layout">
+    <section class="account-panel" data-auth-panel>
+      <h2 class="account-panel__title">Iniciar sesion</h2>
+      <form class="account-form" data-login-form novalidate>
+        <label class="account-field">
+          <span>Email</span>
+          <input type="email" name="email" required autocomplete="email" />
+        </label>
+        <label class="account-field">
+          <span>Contrasena</span>
+          <input
+            type="password"
+            name="password"
+            required
+            minlength="8"
+            autocomplete="current-password"
+          />
+        </label>
+        <button type="submit" class="btn btn--primary">Entrar</button>
+      </form>
+
+      <p class="account-divider">o continua con</p>
+
+      <div class="account-social">
+        <a class="btn btn--ghost" href="" data-google-login>Google</a>
+        <a class="btn btn--ghost" href="" data-steam-login>Steam</a>
+      </div>
+
+      <p class="account-switch">
+        No tienes cuenta?
+        <button type="button" class="link-button" data-show-register>
+          Crear una
+        </button>
+      </p>
+    </section>
+
+    <section class="account-panel hidden" data-register-panel>
+      <h2 class="account-panel__title">Crear cuenta</h2>
+      <form class="account-form" data-register-form novalidate>
+        <label class="account-field">
+          <span>Nombre visible</span>
+          <input type="text" name="displayName" required maxlength="80" />
+        </label>
+        <label class="account-field">
+          <span>Email</span>
+          <input type="email" name="email" required autocomplete="email" />
+        </label>
+        <label class="account-field">
+          <span>Contrasena</span>
+          <input
+            type="password"
+            name="password"
+            required
+            minlength="8"
+            autocomplete="new-password"
+          />
+          <small>Minimo 8 caracteres, con letras y numeros o simbolos.</small>
+        </label>
+        <button type="submit" class="btn btn--primary">Crear cuenta</button>
+      </form>
+
+      <p class="account-switch">
+        Ya tienes cuenta?
+        <button type="button" class="link-button" data-show-login>
+          Entrar
+        </button>
+      </p>
+    </section>
+
+    <section class="account-panel hidden" data-link-panel>
+      <h2 class="account-panel__title">Confirmar vinculacion</h2>
+      <p class="page-subtitle">
+        Esta identidad social ya esta registrada con el email
+        <strong data-link-email></strong>. Introduce la contrasena de esa
+        cuenta para vincular ambos accesos.
+      </p>
+      <form class="account-form" data-link-form novalidate>
+        <label class="account-field">
+          <span>Contrasena</span>
+          <input
+            type="password"
+            name="password"
+            required
+            minlength="8"
+            autocomplete="current-password"
+          />
+        </label>
+        <button type="submit" class="btn btn--primary">Confirmar</button>
+      </form>
+    </section>
+
+    <section class="account-panel hidden" data-session-panel>
+      <h2 class="account-panel__title">Sesion iniciada</h2>
+      <dl class="account-profile">
+        <dt>Nombre</dt>
+        <dd data-profile-name></dd>
+        <dt>Email</dt>
+        <dd data-profile-email></dd>
+        <dt>Metodos de acceso</dt>
+        <dd data-profile-providers></dd>
+      </dl>
+      <div class="account-actions">
+        <a class="btn btn--primary" href="/wishlist">Mi lista de deseos</a>
+        <button type="button" class="btn btn--ghost" data-logout>Cerrar sesion</button>
+        <button type="button" class="btn btn--ghost" data-logout-all>
+          Cerrar todas las sesiones
+        </button>
+      </div>
+    </section>
+  </div>
+
+  <p class="state state--error hidden" data-account-error role="alert"></p>
+</Base>
+
+<script>
+  import {
+    exchangeSocialCode,
+    fetchMe,
+    getStoredUser,
+    googleLoginUrl,
+    isAuthenticated,
+    login,
+    logout,
+    logoutAll,
+    register,
+    setSessionExpiredHandler,
+    steamLoginUrl,
+    storeSession,
+  } from '../lib/auth';
+  import type { AuthResponse } from '../lib/auth';
+  import { request } from '../lib/api';
+
+  const loginPanel = document.querySelector<HTMLElement>('[data-auth-panel]');
+  const registerPanel = document.querySelector<HTMLElement>('[data-register-panel]');
+  const sessionPanel = document.querySelector<HTMLElement>('[data-session-panel]');
+  const linkPanel = document.querySelector<HTMLElement>('[data-link-panel]');
+  const errorBox = document.querySelector<HTMLElement>('[data-account-error]');
+  const subtitle = document.querySelector<HTMLElement>('[data-account-subtitle]');
+
+  const loginForm = document.querySelector<HTMLFormElement>('[data-login-form]');
+  const registerForm = document.querySelector<HTMLFormElement>('[data-register-form]');
+  const linkForm = document.querySelector<HTMLFormElement>('[data-link-form]');
+  const linkEmail = document.querySelector<HTMLElement>('[data-link-email]');
+  const showRegister = document.querySelector<HTMLButtonElement>('[data-show-register]');
+  const showLogin = document.querySelector<HTMLButtonElement>('[data-show-login]');
+  const logoutButton = document.querySelector<HTMLButtonElement>('[data-logout]');
+  const logoutAllButton = document.querySelector<HTMLButtonElement>('[data-logout-all]');
+  const googleLink = document.querySelector<HTMLAnchorElement>('[data-google-login]');
+  const steamLink = document.querySelector<HTMLAnchorElement>('[data-steam-login]');
+
+  function showError(message: string): void {
+    if (!errorBox) return;
+    errorBox.textContent = message;
+    errorBox.classList.remove('hidden');
+  }
+
+  function clearError(): void {
+    if (!errorBox) return;
+    errorBox.textContent = '';
+    errorBox.classList.add('hidden');
+  }
+
+  function showPanel(which: 'login' | 'register' | 'session' | 'link'): void {
+    loginPanel?.classList.toggle('hidden', which !== 'login');
+    registerPanel?.classList.toggle('hidden', which !== 'register');
+    sessionPanel?.classList.toggle('hidden', which !== 'session');
+    linkPanel?.classList.toggle('hidden', which !== 'link');
+  }
+
+  function renderSession(user: {
+    displayName: string;
+    email: string;
+    providers: string[];
+  }): void {
+    const name = document.querySelector('[data-profile-name]');
+    const email = document.querySelector('[data-profile-email]');
+    const providers = document.querySelector('[data-profile-providers]');
+    if (name) name.textContent = user.displayName;
+    if (email) email.textContent = user.email;
+    if (providers) {
+      providers.textContent =
+        user.providers.length > 0 ? user.providers.join(', ') : 'email y contrasena';
+    }
+    if (subtitle) {
+      subtitle.textContent = `Sesion de ${user.displayName}.`;
+    }
+    showPanel('session');
+  }
+
+  showRegister?.addEventListener('click', () => {
+    clearError();
+    showPanel('register');
+  });
+
+  showLogin?.addEventListener('click', () => {
+    clearError();
+    showPanel('login');
+  });
+
+  if (googleLink) googleLink.href = googleLoginUrl();
+  if (steamLink) steamLink.href = steamLoginUrl();
+
+  /**
+   * Traspaso del login social.
+   *
+   * Google y Steam devuelven al navegador a `/cuenta?social=<codigo>`. El
+   * codigo es de un solo uso: se canjea por la sesion y se retira de la URL
+   * para que no quede en el historial.
+   */
+  const params = new URLSearchParams(window.location.search);
+  const socialCode = params.get('social');
+  const linkToken = params.get('linkToken');
+
+  async function handleSocialHandoff(): Promise<void> {
+    if (!socialCode) return;
+
+    // El codigo no debe quedarse en la barra de direcciones.
+    const clean = new URL(window.location.href);
+    clean.searchParams.delete('social');
+    clean.searchParams.delete('linkToken');
+    clean.searchParams.delete('email');
+    window.history.replaceState({}, '', clean.toString());
+
+    if (linkToken) {
+      if (linkEmail) linkEmail.textContent = params.get('email') ?? '';
+      showPanel('link');
+      return;
+    }
+
+    try {
+      const response = await exchangeSocialCode(socialCode);
+      storeSession(response);
+      renderSession(response.user);
+    } catch (error) {
+      showError(
+        error instanceof Error
+          ? error.message
+          : 'No se pudo completar el inicio de sesion social.',
+      );
+      showPanel('login');
+    }
+  }
+
+  linkForm?.addEventListener('submit', (event) => {
+    event.preventDefault();
+    clearError();
+    if (!linkToken) {
+      showError('El token de vinculacion no es valido.');
+      showPanel('login');
+      return;
+    }
+
+    const data = new FormData(linkForm);
+    const password = String(data.get('password') ?? '');
+
+    const button = linkForm.querySelector<HTMLButtonElement>('button[type="submit"]');
+    if (button) {
+      button.disabled = true;
+      button.textContent = 'Confirmando...';
+    }
+
+    void request<AuthResponse>('/auth/link/confirm', {
+      method: 'POST',
+      body: JSON.stringify({ linkToken, password }),
+    })
+      .then((response) => {
+        storeSession(response);
+        renderSession(response.user);
+      })
+      .catch((error: unknown) => {
+        showError(
+          error instanceof Error ? error.message : 'No se pudo confirmar la vinculacion.',
+        );
+      })
+      .finally(() => {
+        if (button) {
+          button.disabled = false;
+          button.textContent = 'Confirmar';
+        }
+      });
+  });
+
+  void handleSocialHandoff();
+
+  loginForm?.addEventListener('submit', (event) => {
+    event.preventDefault();
+    clearError();
+
+    const data = new FormData(loginForm);
+    const email = String(data.get('email') ?? '').trim();
+    const password = String(data.get('password') ?? '');
+
+    if (!email || !password) {
+      showError('Introduce email y contrasena.');
+      return;
+    }
+
+    const button = loginForm.querySelector<HTMLButtonElement>('button[type="submit"]');
+    if (button) {
+      button.disabled = true;
+      button.textContent = 'Entrando...';
+    }
+
+    void login(email, password)
+      .then((response) => {
+        storeSession(response);
+        renderSession(response.user);
+      })
+      .catch((error: unknown) => {
+        showError(error instanceof Error ? error.message : 'No se pudo iniciar sesion.');
+      })
+      .finally(() => {
+        if (button) {
+          button.disabled = false;
+          button.textContent = 'Entrar';
+        }
+      });
+  });
+
+  registerForm?.addEventListener('submit', (event) => {
+    event.preventDefault();
+    clearError();
+
+    const data = new FormData(registerForm);
+    const displayName = String(data.get('displayName') ?? '').trim();
+    const email = String(data.get('email') ?? '').trim();
+    const password = String(data.get('password') ?? '');
+
+    if (!displayName || !email || !password) {
+      showError('Rellena todos los campos.');
+      return;
+    }
+
+    const button = registerForm.querySelector<HTMLButtonElement>('button[type="submit"]');
+    if (button) {
+      button.disabled = true;
+      button.textContent = 'Creando...';
+    }
+
+    void register(email, password, displayName)
+      .then((response) => {
+        storeSession(response);
+        renderSession(response.user);
+      })
+      .catch((error: unknown) => {
+        showError(error instanceof Error ? error.message : 'No se pudo crear la cuenta.');
+      })
+      .finally(() => {
+        if (button) {
+          button.disabled = false;
+          button.textContent = 'Crear cuenta';
+        }
+      });
+  });
+
+  logoutButton?.addEventListener('click', () => {
+    void logout().then(() => {
+      showPanel('login');
+      showError('Sesion cerrada.');
+    });
+  });
+
+  logoutAllButton?.addEventListener('click', () => {
+    void logoutAll().then(() => {
+      showPanel('login');
+      showError('Todas las sesiones se han cerrado.');
+    });
+  });
+
+  setSessionExpiredHandler(() => {
+    showPanel('login');
+    showError('Tu sesion ha caducado. Vuelve a entrar.');
+  });
+
+  if (isAuthenticated()) {
+    const stored = getStoredUser();
+    if (stored) {
+      renderSession(stored);
+    }
+    void fetchMe()
+      .then((user) => renderSession(user))
+      .catch(() => showPanel('login'));
+  }
+</script>

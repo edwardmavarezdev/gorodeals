@@ -1,5 +1,5 @@
-import { ConfigService } from '@nestjs/config';
 import { DataSource } from 'typeorm';
+import type { AppConfig } from '../../config.js';
 import { SteamService } from '../../steam/steam.service.js';
 import { SteamAppNotFoundError } from '../../steam/steam.errors.js';
 import { SteamPriceProvider } from './steam-price.provider.js';
@@ -62,14 +62,9 @@ describe('SteamPriceProvider', () => {
   beforeEach(() => {
     steamService = new FakeSteamService();
     const config = {
-      get: (key: string) => {
-        const values: Record<string, unknown> = {
-          'steam.concurrency': 2,
-          'priceSync.requestDelayMs': 0,
-        };
-        return values[key];
-      },
-    } as unknown as ConfigService;
+      steam: { concurrency: 2 },
+      priceSync: { requestDelayMs: 0 },
+    } as unknown as AppConfig;
 
     provider = new SteamPriceProvider(
       { query: () => Promise.resolve([]) } as unknown as DataSource,

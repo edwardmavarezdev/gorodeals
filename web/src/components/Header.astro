@@ -12,6 +12,13 @@ const { current } = Astro.props;
     <nav class="site-nav">
       <a href="/" aria-current={current === 'catalogo' ? 'page' : undefined}>Catalogo</a>
       <a href="/ofertas" aria-current={current === 'ofertas' ? 'page' : undefined}>Ofertas</a>
+      <a href="/publicaciones" aria-current={current === 'publicaciones' ? 'page' : undefined}>Publicaciones</a>
+      <a href="/saga" aria-current={current === 'saga' ? 'page' : undefined}>Sagas</a>
+    </nav>
+
+    <nav class="site-nav site-nav--account" aria-label="Cuenta">
+      <a href="/wishlist" aria-current={current === 'wishlist' ? 'page' : undefined}>Wishlist</a>
+      <a href="/cuenta" aria-current={current === 'cuenta' ? 'page' : undefined}>Mi cuenta</a>
     </nav>
     <form class="search-form" method="get" action="/" role="search">
       <input

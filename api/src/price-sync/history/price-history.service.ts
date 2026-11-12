@@ -1,5 +1,5 @@
-import { Injectable, Logger } from '@nestjs/common';
 import { DataSource } from 'typeorm';
+import { createLogger } from '../../logger.js';
 import { PriceHistorySource } from '../../prices/entities/price-history.entity.js';
 import { StoreName } from '../../store-products/entities/store-product.entity.js';
 import { StorePriceSnapshot } from '../sync.types.js';
@@ -37,9 +37,8 @@ export interface PriceHistoryRow {
  *   NOTHING` sobre (store_product_id, recorded_at). Gracias a esto, repetir
  *   el sync el mismo dia no duplica filas.
  */
-@Injectable()
 export class PriceHistoryService {
-  private readonly logger = new Logger(PriceHistoryService.name);
+  private readonly logger = createLogger('PriceHistoryService');
 
   constructor(private readonly dataSource: DataSource) {}
 

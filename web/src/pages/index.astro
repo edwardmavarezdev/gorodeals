@@ -2,35 +2,73 @@
 import Base from '../layouts/Base.astro';
 import GameCard from '../components/GameCard.astro';
 import PriceTag from '../components/PriceTag.astro';
-import Pagination from '../components/Pagination.astro';
 import ErrorState from '../components/ErrorState.astro';
+import PublicationCard from '../components/PublicationCard.astro';
 ---
 
-<Base title="Catalogo - GoRoDeals" current="catalogo">
-  <h1 class="page-title">Catalogo de juegos</h1>
-  <p class="page-subtitle" data-results-info>Cargando catalogo...</p>
+<Base title="GoRoDeals - Ofertas y rutas de sagas" current="catalogo">
+  <section class="hero" data-hero hidden>
+    <a class="hero__cover" href="#" data-hero-link data-hero-cover role="img"></a>
+    <div class="hero__body">
+      <span class="hero__eyebrow">Oferta del dia</span>
+      <h1 class="hero__title" data-hero-title></h1>
+      <p class="hero__summary" data-hero-summary></p>
+      <div class="hero__price" data-hero-price></div>
+      <div class="hero__meta">
+        <span class="badge badge--meta" data-hero-discount></span>
+        <span class="badge badge--gold" data-hero-score></span>
+        <span class="badge" data-hero-store></span>
+        <a class="btn btn--sm" href="#" data-hero-cta>Ver ficha</a>
+      </div>
+    </div>
+  </section>
 
   <div id="catalog-state" data-catalog-state></div>
+
+  <div class="section-head">
+    <h2>Catalogo</h2>
+    <a href="/ofertas">Ver las ofertas del dia</a>
+  </div>
+
+  <p class="page-subtitle" data-results-info>Cargando catalogo...</p>
 
   <div class="card-grid" id="catalog-grid" data-catalog-grid></div>
 
   <div id="catalog-pagination" data-catalog-pagination></div>
 
+  <div class="section-head">
+    <h2>Publicaciones</h2>
+    <a href="/publicaciones">Ver todas</a>
+  </div>
+
+  <div class="pub-list" data-home-publications>
+    <div class="state state--loading">Cargando publicaciones...</div>
+  </div>
+
   <GameCard />
   <PriceTag />
-  <Pagination />
+  <PublicationCard />
   <ErrorState />
 </Base>
 
 <script>
-  import { getCatalog, describeError } from '../lib/api';
-  import type { CatalogSort, CatalogStore } from '../lib/api';
-  import { renderCardGrid, renderError, renderPagination, showLoading } from '../lib/render';
+  import { getCatalog, getHottestDeals, getPublications, describeError } from '../lib/api';
+  import type { CatalogItem, CatalogSort, CatalogStore } from '../lib/api';
+  import {
+    buildPriceTag,
+    renderCardGrid,
+    renderError,
+    renderPagination,
+    renderPublicationList,
+    setCover,
+    showLoading,
+  } from '../lib/render';
 
   const grid = document.querySelector<HTMLElement>('[data-catalog-grid]');
   const pagination = document.querySelector<HTMLElement>('[data-catalog-pagination]');
   const state = document.querySelector<HTMLElement>('[data-catalog-state]');
   const info = document.querySelector<HTMLElement>('[data-results-info]');
+  const hero = document.querySelector<HTMLElement>('[data-hero]');
 
   const params = new URLSearchParams(window.location.search);
   const page = Math.max(1, Number(params.get('page') ?? '1') || 1);
@@ -43,6 +81,57 @@ import ErrorState from '../components/ErrorState.astro';
   const sortSelect = document.querySelector<HTMLSelectElement>('[data-sort-select]');
   if (searchInput) searchInput.value = q;
   if (sortSelect && ['recent', 'quality', 'discount'].includes(sort)) sortSelect.value = sort;
+
+  function renderHero(item: CatalogItem | undefined): void {
+    if (!hero || !item) return;
+    const href = `/juego?slug=${encodeURIComponent(item.slug)}`;
+
+    const link = hero.querySelector<HTMLAnchorElement>('[data-hero-link]');
+    if (link) link.href = href;
+    const cta = hero.querySelector<HTMLAnchorElement>('[data-hero-cta]');
+    if (cta) cta.href = href;
+
+    setCover(hero.querySelector<HTMLElement>('[data-hero-cover]'), item.coverUrl, item.title);
+
+    const title = hero.querySelector('[data-hero-title]');
+    if (title) title.textContent = item.title;
+
+    const summary = hero.querySelector('[data-hero-summary]');
+    if (summary) summary.textContent = item.summary ?? 'Oferta destacada del momento.';
+
+    const priceSlot = hero.querySelector<HTMLElement>('[data-hero-price]');
+    if (priceSlot) {
+      const tag = buildPriceTag(item.bestOffer);
+      if (tag) priceSlot.appendChild(tag);
+    }
+
+    const discount = hero.querySelector('[data-hero-discount]');
+    if (discount) {
+      const value = item.bestOffer?.discountPercent ?? 0;
+      discount.textContent = value > 0 ? `-${value}%` : 'Sin descuento';
+    }
+
+    const score = hero.querySelector('[data-hero-score]');
+    if (score) {
+      const value = item.bestOffer?.dealScore;
+      score.textContent =
+        value === null || value === undefined ? 'Deal Score --' : `Deal Score ${value.toFixed(1)}`;
+    }
+
+    const storeTag = hero.querySelector('[data-hero-store]');
+    if (storeTag) storeTag.textContent = item.bestOffer?.storeName ?? 'sin tienda';
+
+    hero.hidden = false;
+  }
+
+  async function loadHero(): Promise<void> {
+    try {
+      const deals = await getHottestDeals(6);
+      renderHero(deals.items[0]);
+    } catch {
+      // El bloque destacado es opcional: si falla, el catalogo sigue igual.
+    }
+  }
 
   async function load(): Promise<void> {
     if (!grid || !pagination || !state) return;
@@ -78,10 +167,30 @@ import ErrorState from '../components/ErrorState.astro';
     }
   }
 
-  void load();
+  async function loadPublications(): Promise<void> {
+    const container = document.querySelector<HTMLElement>('[data-home-publications]');
+    if (!container) return;
+    try {
+      const data = await getPublications({ page: 1, limit: 3 });
+      if (data.items.length === 0) {
+        container.innerHTML = '<div class="state">Todavia no hay publicaciones.</div>';
+        return;
+      }
+      renderPublicationList(container, data.items);
+    } catch (error) {
+      container.innerHTML = '';
+      renderError(container, describeError(error));
+    }
+  }
 
-  // Tras una sincronizacion se vuelve a pedir el catalogo.
+  void load();
+  void loadHero();
+  void loadPublications();
+
+  // Tras una sincronizacion se vuelven a pedir los datos.
   window.addEventListener('gorodeals:sync-complete', () => {
     void load();
+    void loadHero();
+    void loadPublications();
   });
 </script>

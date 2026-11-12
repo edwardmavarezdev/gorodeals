@@ -1,5 +1,4 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
-import { InjectRepository } from '@nestjs/typeorm';
+import type { Static } from '@sinclair/typebox';
 import { DataSource, Repository } from 'typeorm';
 import { Game } from './entities/game.entity.js';
 import { StoreProduct } from '../store-products/entities/store-product.entity.js';
@@ -9,13 +8,14 @@ import {
 } from '../prices/prices.service.js';
 import { FranchisesService } from '../franchises/franchises.service.js';
 import { DealScoreService } from '../deals/deal-score.service.js';
-import { CatalogQueryDto } from './dto/catalog-query.dto.js';
-import { CatalogResponseDto } from './dto/catalog-response.dto.js';
-import { CatalogItemDto } from './dto/catalog-item.dto.js';
-import { BestOfferDto } from './dto/best-offer.dto.js';
-import { GameDetailDto } from './dto/game-detail.dto.js';
-import { GameDetailResponseDto } from './dto/game-detail-response.dto.js';
-import { OfferDto } from './dto/offer.dto.js';
+import { NotFoundException } from '../errors.js';
+import {
+  BestOffer,
+  CatalogItem,
+  CatalogQuery,
+  CatalogResponse,
+} from '../schemas/catalog.js';
+import { GameDetail, GameDetailResponse, Offer } from '../schemas/games.js';
 
 /**
  * Fila cruda del catalogo con la mejor oferta resuelta en SQL (LATERAL).
@@ -42,12 +42,9 @@ interface CatalogRow {
   historical_low_price: number | null;
 }
 
-@Injectable()
 export class GamesService {
   constructor(
-    @InjectRepository(Game)
     private readonly gameRepo: Repository<Game>,
-    @InjectRepository(StoreProduct)
     private readonly storeProductRepo: Repository<StoreProduct>,
     private readonly pricesService: PricesService,
     private readonly franchisesService: FranchisesService,
@@ -60,7 +57,9 @@ export class GamesService {
    * (LIMIT/OFFSET) y la mejor oferta de cada juego se resuelve con un unico
    * LATERAL JOIN: nunca hay una consulta por juego.
    */
-  async listCatalog(query: CatalogQueryDto): Promise<CatalogResponseDto> {
+  async listCatalog(
+    query: Static<typeof CatalogQuery>,
+  ): Promise<Static<typeof CatalogResponse>> {
     const page = query.page ?? 1;
     const limit = query.limit ?? 24;
     const offset = (page - 1) * limit;
@@ -152,7 +151,7 @@ export class GamesService {
 
     const total = countRows[0]?.total ?? 0;
 
-    const items: CatalogItemDto[] = rows.map((row) => {
+    const items: Static<typeof CatalogItem>[] = rows.map((row) => {
       const qualityScore = Number(row.quality_score);
       return {
         id: row.id,
@@ -180,7 +179,7 @@ export class GamesService {
   private mapBestOffer(
     row: CatalogRow,
     qualityScore: number,
-  ): BestOfferDto | null {
+  ): Static<typeof BestOffer> | null {
     if (!row.store_name || row.store_product_id === null) {
       return null;
     }
@@ -210,6 +209,7 @@ export class GamesService {
       currency: row.currency ?? 'USD',
       url: row.url,
       dealScore,
+      historicalLowPrice,
     };
   }
 
@@ -219,7 +219,7 @@ export class GamesService {
   async findBySlug(
     slug: string,
     months: number = DEFAULT_GAME_HISTORY_MONTHS,
-  ): Promise<GameDetailResponseDto> {
+  ): Promise<Static<typeof GameDetailResponse>> {
     const game = await this.gameRepo.findOne({ where: { slug } });
     if (!game) {
       throw new NotFoundException(`No existe el juego con slug "${slug}"`);
@@ -236,7 +236,7 @@ export class GamesService {
     );
     const franchise = await this.franchisesService.findRouteForGame(game.id);
 
-    const detail: GameDetailDto = {
+    const detail: Static<typeof GameDetail> = {
       id: game.id,
       slug: game.slug,
       title: game.title,
@@ -251,7 +251,7 @@ export class GamesService {
       qualityScore: Number(game.qualityScore),
     };
 
-    const offerDtos: OfferDto[] = offers.map((offer) => ({
+    const offerDtos: Static<typeof Offer>[] = offers.map((offer) => ({
       storeName: offer.storeName,
       storeProductId: offer.storeProductId,
       currentPrice: Number(offer.currentPrice),

@@ -1,5 +1,5 @@
-import { ConfigService } from '@nestjs/config';
 import { DataSource } from 'typeorm';
+import type { AppConfig } from '../config.js';
 import { IgdbService } from '../igdb/igdb.service.js';
 import { StoreName } from '../store-products/entities/store-product.entity.js';
 import {
@@ -224,20 +224,17 @@ describe('PriceSyncService', () => {
     igdbService = new FakeIgdbService();
 
     const config = {
-      get: (key: string) => {
-        const values: Record<string, unknown> = {
-          'priceSync.enabled': true,
-          'priceSync.cron': '0 6 * * *',
-          'priceSync.batchSize': 2,
-          'priceSync.storeNames': 'steam',
-          'priceSync.adminSecret': 'secreto',
-          'priceSync.catalogPages': 0,
-          'priceSync.lockTimeoutSeconds': 3600,
-          'priceSync.maxFailureRate': 0.5,
-        };
-        return values[key];
+      priceSync: {
+        enabled: true,
+        cron: '0 6 * * *',
+        batchSize: 2,
+        storeNames: 'steam',
+        adminSecret: 'secreto',
+        catalogPages: 0,
+        lockTimeoutSeconds: 3600,
+        maxFailureRate: 0.5,
       },
-    } as unknown as ConfigService;
+    } as unknown as AppConfig;
 
     service = new PriceSyncService(
       dataSource as unknown as DataSource,
@@ -430,7 +427,7 @@ describe('PriceSyncService', () => {
 
   it('libera el lock al apagarse el proceso con un ciclo en curso', async () => {
     const running = service.runSync();
-    await service.onModuleDestroy();
+    await service.onDestroy();
     await running;
 
     const deletions = dataSource.queries.filter((q) =>

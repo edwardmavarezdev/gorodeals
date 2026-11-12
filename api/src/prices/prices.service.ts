@@ -1,13 +1,10 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
-import { InjectRepository } from '@nestjs/typeorm';
+import type { Static } from '@sinclair/typebox';
 import { Repository } from 'typeorm';
 import { PriceHistory } from './entities/price-history.entity.js';
 import { StoreProduct } from '../store-products/entities/store-product.entity.js';
-import { PriceHistoryPointDto } from '../games/dto/price-history-point.dto.js';
-import {
-  PriceHistoryResponseDto,
-  PriceSeriesPointDto,
-} from './dto/price-history-response.dto.js';
+import { NotFoundException } from '../errors.js';
+import { PriceHistoryPoint } from '../schemas/games.js';
+import { PriceHistoryResponse, PriceSeriesPoint } from '../schemas/prices.js';
 
 /** Meses de historico por defecto en la ficha de un juego (90 dias). */
 export const DEFAULT_GAME_HISTORY_MONTHS = 3;
@@ -15,12 +12,9 @@ export const DEFAULT_GAME_HISTORY_MONTHS = 3;
 /** Meses de historico por defecto en la serie de precios. */
 export const DEFAULT_SERIES_MONTHS = 12;
 
-@Injectable()
 export class PricesService {
   constructor(
-    @InjectRepository(PriceHistory)
     private readonly priceHistoryRepo: Repository<PriceHistory>,
-    @InjectRepository(StoreProduct)
     private readonly storeProductRepo: Repository<StoreProduct>,
   ) {}
 
@@ -41,7 +35,7 @@ export class PricesService {
   async findHistoryForGame(
     gameId: string,
     months: number = DEFAULT_GAME_HISTORY_MONTHS,
-  ): Promise<PriceHistoryPointDto[]> {
+  ): Promise<Static<typeof PriceHistoryPoint>[]> {
     const rows = await this.priceHistoryRepo
       .createQueryBuilder('ph')
       .innerJoin(StoreProduct, 'sp', 'sp.id = ph.storeProductId')
@@ -84,7 +78,7 @@ export class PricesService {
     gameId: string,
     months: number = DEFAULT_SERIES_MONTHS,
     storeProductId?: string,
-  ): Promise<PriceHistoryResponseDto> {
+  ): Promise<Static<typeof PriceHistoryResponse>> {
     const product = await this.resolveStoreProduct(gameId, storeProductId);
 
     const rows = await this.priceHistoryRepo
@@ -107,7 +101,7 @@ export class PricesService {
         discountPercent: number | null;
       }>();
 
-    const points: PriceSeriesPointDto[] = rows.map((row) => ({
+    const points: Static<typeof PriceSeriesPoint>[] = rows.map((row) => ({
       recordedAt: new Date(row.recordedAt).toISOString(),
       price: Number(row.price),
       regularPrice: row.regularPrice === null ? null : Number(row.regularPrice),

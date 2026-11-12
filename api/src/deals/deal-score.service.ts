@@ -1,5 +1,3 @@
-import { Injectable } from '@nestjs/common';
-
 /**
  * Entrada que evalua el Deal Score. Todos los campos son opcionales porque
  * el score se calcula tanto desde filas persistidas como desde datos que aun
@@ -107,10 +105,9 @@ export function computeDealScore(input: DealScoreInput): number {
 }
 
 /**
- * Fachada inyectable de `computeDealScore`. Los modulos la usan para
- * completar en memoria los `deal_score` que aun no estan persistidos.
+ * Fachada de `computeDealScore`. Los servicios la usan para completar en
+ * memoria los `deal_score` que aun no estan persistidos.
  */
-@Injectable()
 export class DealScoreService {
   compute(input: DealScoreInput): number {
     return computeDealScore(input);

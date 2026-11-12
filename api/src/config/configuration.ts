@@ -125,6 +125,36 @@ export interface AppConfig {
     clientSecret: string;
     callbackUri: string;
   };
+  auth: {
+    /**
+     * Secreto de firma del access token (JWT). Vacio significa "sin
+     * configurar": en produccion el arranque falla y en desarrollo se
+     * genera uno efimero con un aviso en el log.
+     */
+    jwtSecret: string;
+    /** Vida del access token, en notacion de duracion (`15m`, `1h`). */
+    accessTtl: string;
+    /** Vida del refresh token, en notacion de duracion (`30d`). */
+    refreshTtl: string;
+    /**
+     * Origenes a los que se puede redirigir tras un login social. Lista
+     * separada por comas. Es la allowlist de `redirect_uri` del frontend.
+     */
+    frontendUrl: string;
+    /** Origenes permitidos como `redirect_uri` de Google OAuth. */
+    googleRedirectAllowlist: string[];
+    /** Realm de retorno de Steam OpenID 2.0. */
+    steamRealm: string;
+    /** URL publica de la clave RSA de Steam para validar OpenID. */
+    steamOpenIdKeyUrl: string;
+    /** URL del endpoint OpenID 2.0 de Steam. */
+    steamOpenIdUrl: string;
+  };
+  wishlist: {
+    /** Credenciales de las tiendas externas con las que se sincroniza. */
+    gog: { apiKey: string };
+    nintendo: { apiKey: string };
+  };
   cors: {
     /** Orígenes permitidos por CORS. Lista separada por comas. */
     origin: string[];
@@ -272,6 +302,34 @@ export default (): AppConfig => ({
     callbackUri:
       process.env.GOOGLE_CALLBACK_URI ??
       'http://localhost:3000/auth/google/callback',
+  },
+  auth: {
+    jwtSecret: process.env.JWT_SECRET ?? '',
+    accessTtl: process.env.JWT_ACCESS_TTL ?? '15m',
+    refreshTtl: process.env.JWT_REFRESH_TTL ?? '30d',
+    frontendUrl: process.env.FRONTEND_URL ?? 'http://localhost:4321',
+    /**
+     * Allowlist de `redirect_uri` de Google OAuth. El valor tiene que estar
+     * en la lista o el exchange del authorization code se rechaza.
+     */
+    googleRedirectAllowlist: (
+      process.env.GOOGLE_REDIRECT_ALLOWLIST ??
+      process.env.GOOGLE_CALLBACK_URI ??
+      'http://localhost:3000/auth/google/callback'
+    )
+      .split(',')
+      .map((value) => value.trim())
+      .filter((value) => value.length > 0),
+    steamRealm: process.env.STEAM_REALM_URI ?? 'http://localhost:3000',
+    steamOpenIdKeyUrl:
+      process.env.STEAM_OPENID_KEY_URL ??
+      'https://api.steampowered.com/SteamIDPubKey.pem',
+    steamOpenIdUrl:
+      process.env.STEAM_OPENID_URL ?? 'https://steamcommunity.com/openid/login',
+  },
+  wishlist: {
+    gog: { apiKey: process.env.WISHLIST_GOG_API_KEY ?? '' },
+    nintendo: { apiKey: process.env.WISHLIST_NINTENDO_API_KEY ?? '' },
   },
   cors: {
     /**

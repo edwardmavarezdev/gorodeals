@@ -1,6 +1,6 @@
-import { Injectable, Logger } from '@nestjs/common';
-import { ConfigService } from '@nestjs/config';
 import { DataSource } from 'typeorm';
+import type { AppConfig } from '../../config.js';
+import { createLogger } from '../../logger.js';
 import { SteamService } from '../../steam/steam.service.js';
 import { SteamAppNotFoundError } from '../../steam/steam.errors.js';
 import { StoreName } from '../../store-products/entities/store-product.entity.js';
@@ -28,11 +28,10 @@ const FIRST_CURSOR = '00000000-0000-0000-0000-000000000000';
  * disponibilidad intacta: con Steam caido, el catalogo entero no debe
  * aparecer como agotado.
  */
-@Injectable()
 export class SteamPriceProvider implements StorePriceProvider {
   readonly storeName = StoreName.STEAM;
 
-  private readonly logger = new Logger(SteamPriceProvider.name);
+  private readonly logger = createLogger('SteamPriceProvider');
   private readonly concurrency: number;
   private readonly requestDelayMs: number;
 
@@ -49,11 +48,10 @@ export class SteamPriceProvider implements StorePriceProvider {
   constructor(
     private readonly dataSource: DataSource,
     private readonly steamService: SteamService,
-    private readonly config: ConfigService,
+    private readonly config: AppConfig,
   ) {
-    this.concurrency = this.config.get<number>('steam.concurrency') ?? 4;
-    this.requestDelayMs =
-      this.config.get<number>('priceSync.requestDelayMs') ?? 50;
+    this.concurrency = this.config.steam.concurrency;
+    this.requestDelayMs = this.config.priceSync.requestDelayMs;
   }
 
   /**

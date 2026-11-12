@@ -1,7 +1,6 @@
-import { Injectable, Logger } from '@nestjs/common';
-import { ConfigService } from '@nestjs/config';
-import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
+import type { AppConfig } from '../config.js';
+import { createLogger } from '../logger.js';
 import { Game } from '../games/entities/game.entity.js';
 import {
   StoreName,
@@ -332,21 +331,17 @@ interface SteamAppDetailsResponse {
  *   host estadounidense `searching.nintendo.com` no resuelve por DNS desde
  *   este entorno, y el europeo responde en EUR.
  */
-@Injectable()
 export class SyncRandomGamesService {
-  private readonly logger = new Logger(SyncRandomGamesService.name);
+  private readonly logger = createLogger('SyncRandomGamesService');
   private readonly timeoutMs: number;
 
   constructor(
-    @InjectRepository(Game)
     private readonly games: Repository<Game>,
-    @InjectRepository(StoreProduct)
     private readonly storeProducts: Repository<StoreProduct>,
-    @InjectRepository(PriceHistory)
     private readonly priceHistory: Repository<PriceHistory>,
-    private readonly config: ConfigService,
+    private readonly config: AppConfig,
   ) {
-    this.timeoutMs = this.config.get<number>('steam.timeoutMs') ?? 12_000;
+    this.timeoutMs = this.config.steam.timeoutMs;
   }
 
   /**
@@ -486,8 +481,8 @@ export class SyncRandomGamesService {
     if (products.length === 0) {
       return [];
     }
-    const cc = this.config.get<string>('steam.countryCode') ?? 'us';
-    const language = this.config.get<string>('steam.language') ?? 'es';
+    const cc = this.config.steam.countryCode;
+    const language = this.config.steam.language;
     const candidates: SyncCandidate[] = [];
 
     for (const product of products) {
@@ -557,8 +552,8 @@ export class SyncRandomGamesService {
     random: () => number,
     exclude: Set<string> = new Set<string>(),
   ): Promise<SyncCandidate[]> {
-    const cc = this.config.get<string>('steam.countryCode') ?? 'us';
-    const language = this.config.get<string>('steam.language') ?? 'es';
+    const cc = this.config.steam.countryCode;
+    const language = this.config.steam.language;
     const appIds = new Set<number>();
 
     // El listado devuelve ~25-50 resultados por pagina; se barrenan varias

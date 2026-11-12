@@ -1,6 +1,6 @@
 ---
 import Base from '../layouts/Base.astro';
-import GameCard from '../components/GameCard.astro';
+import DealRow from '../components/DealRow.astro';
 import PriceTag from '../components/PriceTag.astro';
 import ErrorState from '../components/ErrorState.astro';
 ---
@@ -11,16 +11,16 @@ import ErrorState from '../components/ErrorState.astro';
 
   <div id="deals-state" data-deals-state></div>
 
-  <div class="card-grid" id="deals-grid" data-deals-grid></div>
+  <div class="deal-list" id="deals-grid" data-deals-grid></div>
 
-  <GameCard />
+  <DealRow />
   <PriceTag />
   <ErrorState />
 </Base>
 
 <script>
   import { getHottestDeals, describeError } from '../lib/api';
-  import { renderCardGrid, renderError, showLoading } from '../lib/render';
+  import { renderDealList, renderError, showLoading } from '../lib/render';
 
   const grid = document.querySelector<HTMLElement>('[data-deals-grid]');
   const state = document.querySelector<HTMLElement>('[data-deals-state]');
@@ -33,8 +33,8 @@ import ErrorState from '../components/ErrorState.astro';
     if (info) info.textContent = 'Cargando ofertas...';
 
     try {
-      const data = await getHottestDeals(20);
-      renderCardGrid(grid, data.items);
+      const data = await getHottestDeals(30);
+      renderDealList(grid, data.items);
 
       if (data.items.length === 0) {
         grid.innerHTML = '<div class="state">No hay ofertas disponibles ahora mismo.</div>';

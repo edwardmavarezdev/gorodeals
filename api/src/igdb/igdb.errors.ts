@@ -1,6 +1,6 @@
 /**
- * Errores tipados del cliente IGDB. Se propagan hasta el filtro global del
- * modulo, que los traduce a codigos HTTP coherentes.
+ * Errores tipados del cliente IGDB. Se propagan hasta el controlador
+ * (`src/controllers/igdb.ts`), que los traduce a codigos HTTP coherentes.
  */
 export class IgdbError extends Error {
   constructor(message: string) {

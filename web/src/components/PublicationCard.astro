@@ -1,0 +1,23 @@
+---
+// Plantilla de tarjeta editorial de la seccion de publicaciones.
+// Se clona desde el cliente con los datos que devuelve GET /publications.
+---
+
+<template data-template="publication-card">
+  <article class="pub-card">
+    <a class="pub-card__cover" href="#" data-pub-link data-pub-cover role="img"></a>
+    <div class="pub-card__body">
+      <span class="pub-tag" data-pub-tag></span>
+      <h3 class="pub-card__title">
+        <a href="#" data-pub-title-link data-pub-title></a>
+      </h3>
+      <p class="pub-card__excerpt" data-pub-excerpt></p>
+      <div class="pub-card__footer">
+        <span data-pub-author></span>
+        <span data-pub-date></span>
+        <span data-pub-reading></span>
+        <span class="pub-tag pub-tag--ruta" data-pub-franchise></span>
+      </div>
+    </div>
+  </article>
+</template>

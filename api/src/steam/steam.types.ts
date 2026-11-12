@@ -59,30 +59,9 @@ export interface SteamAppDetailsResponse {
 }
 
 /**
- * Snapshot normalizado de precio. Es el contrato que consumen el sync de
- * precios y el historico: importes en la unidad mayor (divisor 100) y
- * `regularPrice` siempre definido (igual a `currentPrice` si no hay lista).
+ * El snapshot normalizado de precio (importes en la unidad mayor, con
+ * `regularPrice` siempre definido) es el contrato que consumen el sync de
+ * precios y el historico. Su forma la fija el esquema `SteamPriceSnapshot`
+ * de `src/schemas/steam.ts`: el servicio devuelve `Static<typeof
+ * SteamPriceSnapshot>` y el controlador lo serializa con ese mismo esquema.
  */
-export interface SteamPriceSnapshot {
-  appId: number;
-  name: string | null;
-  currency: string;
-  currentPrice: number;
-  regularPrice: number;
-  discountPercent: number;
-  isFree: boolean;
-  isAvailable: boolean;
-  url: string;
-  /** Valoracion de usuarios en porcentaje (0-100), null si no hay datos. */
-  ratingPercent: number | null;
-  ratingVotes: number | null;
-  metacriticScore: number | null;
-  /** Tamano de descarga en MB. Steam no lo publica en appdetails: null. */
-  downloadSizeMb: number | null;
-  releaseDate: string | null;
-  developers: string[];
-  publishers: string[];
-  genres: string[];
-  platforms: string[];
-  headerImage: string | null;
-}

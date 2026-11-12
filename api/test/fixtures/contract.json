@@ -1,0 +1,1877 @@
+{
+  "description": "Fixtures de contrato: forma de la respuesta de cada endpoint (estado, claves y tipos). Capturados del backend de NestJS.",
+  "endpoints": [
+    {
+      "method": "GET",
+      "path": "/health",
+      "status": 200,
+      "shape": {
+        "type": "object",
+        "keys": {
+          "database": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string"
+          },
+          "timestamp": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    {
+      "method": "GET",
+      "path": "/catalog?page=1&limit=5",
+      "status": 200,
+      "shape": {
+        "type": "object",
+        "keys": {
+          "items": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "keys": {
+                "bestOffer": {
+                  "type": "object",
+                  "keys": {
+                    "currency": {
+                      "type": "string"
+                    },
+                    "currentPrice": {
+                      "type": "number"
+                    },
+                    "dealScore": {
+                      "type": "number"
+                    },
+                    "discountPercent": {
+                      "type": "number"
+                    },
+                    "historicalLowPrice": {
+                      "type": "number"
+                    },
+                    "regularPrice": {
+                      "type": "number"
+                    },
+                    "storeName": {
+                      "type": "string"
+                    },
+                    "storeProductId": {
+                      "type": "string"
+                    },
+                    "url": {
+                      "type": "string"
+                    }
+                  }
+                },
+                "coverUrl": {
+                  "type": "string"
+                },
+                "genres": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                },
+                "id": {
+                  "type": "string"
+                },
+                "metacriticScore": {
+                  "type": "null"
+                },
+                "platforms": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                },
+                "qualityScore": {
+                  "type": "number"
+                },
+                "releaseDate": {
+                  "type": "string"
+                },
+                "slug": {
+                  "type": "string"
+                },
+                "summary": {
+                  "type": "string"
+                },
+                "title": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "limit": {
+            "type": "number"
+          },
+          "page": {
+            "type": "number"
+          },
+          "total": {
+            "type": "number"
+          }
+        }
+      }
+    },
+    {
+      "method": "GET",
+      "path": "/catalog?sort=discount&store=steam&limit=5",
+      "status": 200,
+      "shape": {
+        "type": "object",
+        "keys": {
+          "items": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "keys": {
+                "bestOffer": {
+                  "type": "object",
+                  "keys": {
+                    "currency": {
+                      "type": "string"
+                    },
+                    "currentPrice": {
+                      "type": "number"
+                    },
+                    "dealScore": {
+                      "type": "number"
+                    },
+                    "discountPercent": {
+                      "type": "number"
+                    },
+                    "historicalLowPrice": {
+                      "type": "number"
+                    },
+                    "regularPrice": {
+                      "type": "number"
+                    },
+                    "storeName": {
+                      "type": "string"
+                    },
+                    "storeProductId": {
+                      "type": "string"
+                    },
+                    "url": {
+                      "type": "string"
+                    }
+                  }
+                },
+                "coverUrl": {
+                  "type": "string"
+                },
+                "genres": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                },
+                "id": {
+                  "type": "string"
+                },
+                "metacriticScore": {
+                  "type": "null"
+                },
+                "platforms": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                },
+                "qualityScore": {
+                  "type": "number"
+                },
+                "releaseDate": {
+                  "type": "string"
+                },
+                "slug": {
+                  "type": "string"
+                },
+                "summary": {
+                  "type": "string"
+                },
+                "title": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "limit": {
+            "type": "number"
+          },
+          "page": {
+            "type": "number"
+          },
+          "total": {
+            "type": "number"
+          }
+        }
+      }
+    },
+    {
+      "method": "GET",
+      "path": "/catalog?sort=quality&q=a&limit=5",
+      "status": 200,
+      "shape": {
+        "type": "object",
+        "keys": {
+          "items": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "keys": {
+                "bestOffer": {
+                  "type": "object",
+                  "keys": {
+                    "currency": {
+                      "type": "string"
+                    },
+                    "currentPrice": {
+                      "type": "number"
+                    },
+                    "dealScore": {
+                      "type": "number"
+                    },
+                    "discountPercent": {
+                      "type": "number"
+                    },
+                    "historicalLowPrice": {
+                      "type": "number"
+                    },
+                    "regularPrice": {
+                      "type": "number"
+                    },
+                    "storeName": {
+                      "type": "string"
+                    },
+                    "storeProductId": {
+                      "type": "string"
+                    },
+                    "url": {
+                      "type": "string"
+                    }
+                  }
+                },
+                "coverUrl": {
+                  "type": "string"
+                },
+                "genres": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                },
+                "id": {
+                  "type": "string"
+                },
+                "metacriticScore": {
+                  "type": "number"
+                },
+                "platforms": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                },
+                "qualityScore": {
+                  "type": "number"
+                },
+                "releaseDate": {
+                  "type": "string"
+                },
+                "slug": {
+                  "type": "string"
+                },
+                "summary": {
+                  "type": "string"
+                },
+                "title": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "limit": {
+            "type": "number"
+          },
+          "page": {
+            "type": "number"
+          },
+          "total": {
+            "type": "number"
+          }
+        }
+      }
+    },
+    {
+      "method": "GET",
+      "path": "/games/{gameSlug}",
+      "status": 200,
+      "shape": {
+        "type": "object",
+        "keys": {
+          "franchise": {
+            "type": "null"
+          },
+          "game": {
+            "type": "object",
+            "keys": {
+              "coverUrl": {
+                "type": "string"
+              },
+              "description": {
+                "type": "string"
+              },
+              "genres": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              },
+              "id": {
+                "type": "string"
+              },
+              "metacriticScore": {
+                "type": "null"
+              },
+              "platforms": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              },
+              "qualityScore": {
+                "type": "number"
+              },
+              "releaseDate": {
+                "type": "string"
+              },
+              "screenshots": {
+                "type": "array",
+                "items": null
+              },
+              "slug": {
+                "type": "string"
+              },
+              "summary": {
+                "type": "string"
+              },
+              "title": {
+                "type": "string"
+              }
+            }
+          },
+          "offers": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "keys": {
+                "currency": {
+                  "type": "string"
+                },
+                "currentPrice": {
+                  "type": "number"
+                },
+                "dealScore": {
+                  "type": "number"
+                },
+                "discountPercent": {
+                  "type": "number"
+                },
+                "historicalLowPrice": {
+                  "type": "number"
+                },
+                "isAvailable": {
+                  "type": "boolean"
+                },
+                "lastCheckedAt": {
+                  "type": "string"
+                },
+                "regularPrice": {
+                  "type": "number"
+                },
+                "storeName": {
+                  "type": "string"
+                },
+                "storeProductId": {
+                  "type": "string"
+                },
+                "url": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "priceHistory": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "keys": {
+                "discountPercent": {
+                  "type": "number"
+                },
+                "price": {
+                  "type": "number"
+                },
+                "recordedAt": {
+                  "type": "string"
+                },
+                "regularPrice": {
+                  "type": "number"
+                },
+                "storeName": {
+                  "type": "string"
+                },
+                "storeProductId": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "method": "GET",
+      "path": "/games/{gameSlug}?months=6",
+      "status": 200,
+      "shape": {
+        "type": "object",
+        "keys": {
+          "franchise": {
+            "type": "null"
+          },
+          "game": {
+            "type": "object",
+            "keys": {
+              "coverUrl": {
+                "type": "string"
+              },
+              "description": {
+                "type": "string"
+              },
+              "genres": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              },
+              "id": {
+                "type": "string"
+              },
+              "metacriticScore": {
+                "type": "null"
+              },
+              "platforms": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              },
+              "qualityScore": {
+                "type": "number"
+              },
+              "releaseDate": {
+                "type": "string"
+              },
+              "screenshots": {
+                "type": "array",
+                "items": null
+              },
+              "slug": {
+                "type": "string"
+              },
+              "summary": {
+                "type": "string"
+              },
+              "title": {
+                "type": "string"
+              }
+            }
+          },
+          "offers": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "keys": {
+                "currency": {
+                  "type": "string"
+                },
+                "currentPrice": {
+                  "type": "number"
+                },
+                "dealScore": {
+                  "type": "number"
+                },
+                "discountPercent": {
+                  "type": "number"
+                },
+                "historicalLowPrice": {
+                  "type": "number"
+                },
+                "isAvailable": {
+                  "type": "boolean"
+                },
+                "lastCheckedAt": {
+                  "type": "string"
+                },
+                "regularPrice": {
+                  "type": "number"
+                },
+                "storeName": {
+                  "type": "string"
+                },
+                "storeProductId": {
+                  "type": "string"
+                },
+                "url": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "priceHistory": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "keys": {
+                "discountPercent": {
+                  "type": "number"
+                },
+                "price": {
+                  "type": "number"
+                },
+                "recordedAt": {
+                  "type": "string"
+                },
+                "regularPrice": {
+                  "type": "number"
+                },
+                "storeName": {
+                  "type": "string"
+                },
+                "storeProductId": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "method": "GET",
+      "path": "/games/{gameId}/price-history",
+      "status": 200,
+      "shape": {
+        "type": "object",
+        "keys": {
+          "points": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "keys": {
+                "discountPercent": {
+                  "type": "number"
+                },
+                "price": {
+                  "type": "number"
+                },
+                "recordedAt": {
+                  "type": "string"
+                },
+                "regularPrice": {
+                  "type": "number"
+                }
+              }
+            }
+          },
+          "storeProductId": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    {
+      "method": "GET",
+      "path": "/games/{gameId}/price-history?months=3",
+      "status": 200,
+      "shape": {
+        "type": "object",
+        "keys": {
+          "points": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "keys": {
+                "discountPercent": {
+                  "type": "number"
+                },
+                "price": {
+                  "type": "number"
+                },
+                "recordedAt": {
+                  "type": "string"
+                },
+                "regularPrice": {
+                  "type": "number"
+                }
+              }
+            }
+          },
+          "storeProductId": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    {
+      "method": "GET",
+      "path": "/franchises",
+      "status": 200,
+      "shape": {
+        "type": "array",
+        "items": {
+          "type": "object",
+          "keys": {
+            "description": {
+              "type": "string"
+            },
+            "gameCount": {
+              "type": "number"
+            },
+            "name": {
+              "type": "string"
+            },
+            "slug": {
+              "type": "string"
+            }
+          }
+        }
+      }
+    },
+    {
+      "method": "GET",
+      "path": "/franchises/{franchiseSlug}/route",
+      "status": 200,
+      "shape": {
+        "type": "object",
+        "keys": {
+          "description": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "route": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "keys": {
+                "game": {
+                  "type": "object",
+                  "keys": {
+                    "coverUrl": {
+                      "type": "string"
+                    },
+                    "qualityScore": {
+                      "type": "number"
+                    },
+                    "releaseDate": {
+                      "type": "string"
+                    },
+                    "slug": {
+                      "type": "string"
+                    },
+                    "title": {
+                      "type": "string"
+                    }
+                  }
+                },
+                "note": {
+                  "type": "string"
+                },
+                "position": {
+                  "type": "number"
+                }
+              }
+            }
+          },
+          "slug": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    {
+      "method": "GET",
+      "path": "/deals/hottest?limit=5",
+      "status": 200,
+      "shape": {
+        "type": "object",
+        "keys": {
+          "items": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "keys": {
+                "bestOffer": {
+                  "type": "object",
+                  "keys": {
+                    "currency": {
+                      "type": "string"
+                    },
+                    "currentPrice": {
+                      "type": "number"
+                    },
+                    "dealScore": {
+                      "type": "number"
+                    },
+                    "discountPercent": {
+                      "type": "number"
+                    },
+                    "historicalLowPrice": {
+                      "type": "number"
+                    },
+                    "regularPrice": {
+                      "type": "number"
+                    },
+                    "storeName": {
+                      "type": "string"
+                    },
+                    "storeProductId": {
+                      "type": "string"
+                    },
+                    "url": {
+                      "type": "string"
+                    }
+                  }
+                },
+                "coverUrl": {
+                  "type": "string"
+                },
+                "genres": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                },
+                "id": {
+                  "type": "string"
+                },
+                "metacriticScore": {
+                  "type": "null"
+                },
+                "platforms": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                },
+                "qualityScore": {
+                  "type": "number"
+                },
+                "releaseDate": {
+                  "type": "string"
+                },
+                "slug": {
+                  "type": "string"
+                },
+                "summary": {
+                  "type": "string"
+                },
+                "title": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "method": "GET",
+      "path": "/deals/hottest",
+      "status": 200,
+      "shape": {
+        "type": "object",
+        "keys": {
+          "items": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "keys": {
+                "bestOffer": {
+                  "type": "object",
+                  "keys": {
+                    "currency": {
+                      "type": "string"
+                    },
+                    "currentPrice": {
+                      "type": "number"
+                    },
+                    "dealScore": {
+                      "type": "number"
+                    },
+                    "discountPercent": {
+                      "type": "number"
+                    },
+                    "historicalLowPrice": {
+                      "type": "number"
+                    },
+                    "regularPrice": {
+                      "type": "number"
+                    },
+                    "storeName": {
+                      "type": "string"
+                    },
+                    "storeProductId": {
+                      "type": "string"
+                    },
+                    "url": {
+                      "type": "string"
+                    }
+                  }
+                },
+                "coverUrl": {
+                  "type": "string"
+                },
+                "genres": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                },
+                "id": {
+                  "type": "string"
+                },
+                "metacriticScore": {
+                  "type": "number"
+                },
+                "platforms": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                },
+                "qualityScore": {
+                  "type": "number"
+                },
+                "releaseDate": {
+                  "type": "string"
+                },
+                "slug": {
+                  "type": "string"
+                },
+                "summary": {
+                  "type": "string"
+                },
+                "title": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "method": "GET",
+      "path": "/publications",
+      "status": 200,
+      "shape": {
+        "type": "object",
+        "keys": {
+          "items": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "keys": {
+                "authorName": {
+                  "type": "string"
+                },
+                "category": {
+                  "type": "string"
+                },
+                "coverUrl": {
+                  "type": "string"
+                },
+                "excerpt": {
+                  "type": "string"
+                },
+                "franchise": {
+                  "type": "null"
+                },
+                "id": {
+                  "type": "string"
+                },
+                "publishedAt": {
+                  "type": "string"
+                },
+                "readingMinutes": {
+                  "type": "number"
+                },
+                "slug": {
+                  "type": "string"
+                },
+                "subtitle": {
+                  "type": "string"
+                },
+                "title": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "limit": {
+            "type": "number"
+          },
+          "page": {
+            "type": "number"
+          },
+          "total": {
+            "type": "number"
+          },
+          "totalPages": {
+            "type": "number"
+          }
+        }
+      }
+    },
+    {
+      "method": "GET",
+      "path": "/publications?limit=2&category=ruta",
+      "status": 200,
+      "shape": {
+        "type": "object",
+        "keys": {
+          "items": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "keys": {
+                "authorName": {
+                  "type": "string"
+                },
+                "category": {
+                  "type": "string"
+                },
+                "coverUrl": {
+                  "type": "string"
+                },
+                "excerpt": {
+                  "type": "string"
+                },
+                "franchise": {
+                  "type": "null"
+                },
+                "id": {
+                  "type": "string"
+                },
+                "publishedAt": {
+                  "type": "string"
+                },
+                "readingMinutes": {
+                  "type": "number"
+                },
+                "slug": {
+                  "type": "string"
+                },
+                "subtitle": {
+                  "type": "string"
+                },
+                "title": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "limit": {
+            "type": "number"
+          },
+          "page": {
+            "type": "number"
+          },
+          "total": {
+            "type": "number"
+          },
+          "totalPages": {
+            "type": "number"
+          }
+        }
+      }
+    },
+    {
+      "method": "GET",
+      "path": "/publications/categories",
+      "status": 200,
+      "shape": {
+        "type": "object",
+        "keys": {
+          "items": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "keys": {
+                "count": {
+                  "type": "number"
+                },
+                "name": {
+                  "type": "string"
+                },
+                "slug": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "method": "GET",
+      "path": "/publications/{publicationSlug}",
+      "status": 200,
+      "shape": {
+        "type": "object",
+        "keys": {
+          "authorName": {
+            "type": "string"
+          },
+          "body": {
+            "type": "string"
+          },
+          "category": {
+            "type": "string"
+          },
+          "coverUrl": {
+            "type": "string"
+          },
+          "excerpt": {
+            "type": "string"
+          },
+          "franchise": {
+            "type": "null"
+          },
+          "id": {
+            "type": "string"
+          },
+          "publishedAt": {
+            "type": "string"
+          },
+          "readingMinutes": {
+            "type": "number"
+          },
+          "relatedGames": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "keys": {
+                "bestPrice": {
+                  "type": "number"
+                },
+                "coverUrl": {
+                  "type": "string"
+                },
+                "currency": {
+                  "type": "string"
+                },
+                "discountPercent": {
+                  "type": "number"
+                },
+                "releaseDate": {
+                  "type": "string"
+                },
+                "slug": {
+                  "type": "string"
+                },
+                "storeName": {
+                  "type": "string"
+                },
+                "title": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "route": {
+            "type": "null"
+          },
+          "seoDescription": {
+            "type": "string"
+          },
+          "seoTitle": {
+            "type": "string"
+          },
+          "slug": {
+            "type": "string"
+          },
+          "subtitle": {
+            "type": "string"
+          },
+          "title": {
+            "type": "string"
+          },
+          "updatedAt": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    {
+      "method": "GET",
+      "path": "/price-sync/status",
+      "status": 200,
+      "shape": {
+        "type": "object",
+        "keys": {
+          "batchSize": {
+            "type": "number"
+          },
+          "catalogPages": {
+            "type": "number"
+          },
+          "cron": {
+            "type": "string"
+          },
+          "enabled": {
+            "type": "boolean"
+          },
+          "lastRun": {
+            "type": "null"
+          },
+          "runId": {
+            "type": "null"
+          },
+          "running": {
+            "type": "boolean"
+          },
+          "storeNames": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "timezone": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    {
+      "method": "POST",
+      "path": "/price-sync/run",
+      "status": 403,
+      "shape": {
+        "type": "object",
+        "keys": {
+          "error": {
+            "type": "string"
+          },
+          "message": {
+            "type": "string"
+          },
+          "statusCode": {
+            "type": "number"
+          }
+        }
+      }
+    },
+    {
+      "method": "GET",
+      "path": "/price-sync/history/{storeProductId}",
+      "status": 200,
+      "shape": {
+        "type": "array",
+        "items": {
+          "type": "object",
+          "keys": {
+            "discountPercent": {
+              "type": "number"
+            },
+            "id": {
+              "type": "string"
+            },
+            "price": {
+              "type": "number"
+            },
+            "recordedAt": {
+              "type": "string"
+            },
+            "regularPrice": {
+              "type": "number"
+            },
+            "source": {
+              "type": "string"
+            },
+            "storeProductId": {
+              "type": "string"
+            }
+          }
+        }
+      }
+    },
+    {
+      "method": "POST",
+      "path": "/admin/sync/random?count=1&platforms=steam",
+      "status": 200,
+      "shape": {
+        "type": "object",
+        "keys": {
+          "durationMs": {
+            "type": "number"
+          },
+          "games": {
+            "type": "number"
+          },
+          "history": {
+            "type": "number"
+          },
+          "offers": {
+            "type": "number"
+          },
+          "requested": {
+            "type": "object",
+            "keys": {
+              "count": {
+                "type": "number"
+              },
+              "platforms": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "sources": {
+            "type": "object",
+            "keys": {
+              "steam": {
+                "type": "string"
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "method": "POST",
+      "path": "/auth/register",
+      "status": 400,
+      "shape": {
+        "type": "object",
+        "keys": {
+          "error": {
+            "type": "string"
+          },
+          "message": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "statusCode": {
+            "type": "number"
+          }
+        }
+      }
+    },
+    {
+      "method": "POST",
+      "path": "/auth/login",
+      "status": 401,
+      "shape": {
+        "type": "object",
+        "keys": {
+          "error": {
+            "type": "string"
+          },
+          "message": {
+            "type": "string"
+          },
+          "statusCode": {
+            "type": "number"
+          }
+        }
+      }
+    },
+    {
+      "method": "POST",
+      "path": "/auth/refresh",
+      "status": 400,
+      "shape": {
+        "type": "object",
+        "keys": {
+          "error": {
+            "type": "string"
+          },
+          "message": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "statusCode": {
+            "type": "number"
+          }
+        }
+      }
+    },
+    {
+      "method": "GET",
+      "path": "/auth/me",
+      "status": 200,
+      "shape": {
+        "type": "object",
+        "keys": {
+          "avatarUrl": {
+            "type": "null"
+          },
+          "displayName": {
+            "type": "string"
+          },
+          "email": {
+            "type": "string"
+          },
+          "id": {
+            "type": "string"
+          },
+          "providers": {
+            "type": "array",
+            "items": null
+          }
+        }
+      }
+    },
+    {
+      "method": "PATCH",
+      "path": "/auth/me",
+      "status": 200,
+      "shape": {
+        "type": "object",
+        "keys": {
+          "avatarUrl": {
+            "type": "null"
+          },
+          "displayName": {
+            "type": "string"
+          },
+          "email": {
+            "type": "string"
+          },
+          "id": {
+            "type": "string"
+          },
+          "providers": {
+            "type": "array",
+            "items": null
+          }
+        }
+      }
+    },
+    {
+      "method": "GET",
+      "path": "/auth/google",
+      "status": 503,
+      "shape": {
+        "type": "object",
+        "keys": {
+          "error": {
+            "type": "string"
+          },
+          "message": {
+            "type": "string"
+          },
+          "statusCode": {
+            "type": "number"
+          }
+        }
+      }
+    },
+    {
+      "method": "GET",
+      "path": "/auth/steam",
+      "status": 302,
+      "shape": {
+        "type": "null"
+      }
+    },
+    {
+      "method": "POST",
+      "path": "/auth/social/exchange",
+      "status": 400,
+      "shape": {
+        "type": "object",
+        "keys": {
+          "error": {
+            "type": "string"
+          },
+          "message": {
+            "type": "string"
+          },
+          "statusCode": {
+            "type": "number"
+          }
+        }
+      }
+    },
+    {
+      "method": "GET",
+      "path": "/igdb/search?q=zelda&limit=3",
+      "status": 200,
+      "shape": {
+        "type": "array",
+        "items": {
+          "type": "object",
+          "keys": {
+            "coverUrl": {
+              "type": "string"
+            },
+            "criticsCount": {
+              "type": "null"
+            },
+            "criticsScore": {
+              "type": "null"
+            },
+            "description": {
+              "type": "string"
+            },
+            "genres": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            "igdbId": {
+              "type": "string"
+            },
+            "platforms": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            "rating": {
+              "type": "number"
+            },
+            "ratingCount": {
+              "type": "number"
+            },
+            "releaseDate": {
+              "type": "string"
+            },
+            "screenshots": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            "slug": {
+              "type": "string"
+            },
+            "summary": {
+              "type": "string"
+            },
+            "title": {
+              "type": "string"
+            },
+            "totalScore": {
+              "type": "number"
+            },
+            "totalScoreCount": {
+              "type": "number"
+            }
+          }
+        }
+      }
+    },
+    {
+      "method": "GET",
+      "path": "/igdb/games/search?q=zelda&limit=3",
+      "status": 200,
+      "shape": {
+        "type": "array",
+        "items": {
+          "type": "object",
+          "keys": {
+            "coverUrl": {
+              "type": "string"
+            },
+            "criticsCount": {
+              "type": "null"
+            },
+            "criticsScore": {
+              "type": "null"
+            },
+            "description": {
+              "type": "string"
+            },
+            "genres": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            "igdbId": {
+              "type": "string"
+            },
+            "platforms": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            "rating": {
+              "type": "number"
+            },
+            "ratingCount": {
+              "type": "number"
+            },
+            "releaseDate": {
+              "type": "string"
+            },
+            "screenshots": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            "slug": {
+              "type": "string"
+            },
+            "summary": {
+              "type": "string"
+            },
+            "title": {
+              "type": "string"
+            },
+            "totalScore": {
+              "type": "number"
+            },
+            "totalScoreCount": {
+              "type": "number"
+            }
+          }
+        }
+      }
+    },
+    {
+      "method": "GET",
+      "path": "/igdb/games/{igdbId}",
+      "status": 400,
+      "shape": {
+        "type": "object",
+        "keys": {
+          "error": {
+            "type": "string"
+          },
+          "message": {
+            "type": "string"
+          },
+          "path": {
+            "type": "string"
+          },
+          "statusCode": {
+            "type": "number"
+          },
+          "timestamp": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    {
+      "method": "POST",
+      "path": "/igdb/sync",
+      "status": 403,
+      "shape": {
+        "type": "object",
+        "keys": {
+          "error": {
+            "type": "string"
+          },
+          "message": {
+            "type": "string"
+          },
+          "statusCode": {
+            "type": "number"
+          }
+        }
+      }
+    },
+    {
+      "method": "GET",
+      "path": "/steam/app/{appId}",
+      "status": 200,
+      "shape": {
+        "type": "object",
+        "keys": {
+          "appId": {
+            "type": "number"
+          },
+          "currency": {
+            "type": "string"
+          },
+          "currentPrice": {
+            "type": "number"
+          },
+          "developers": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "discountPercent": {
+            "type": "number"
+          },
+          "downloadSizeMb": {
+            "type": "null"
+          },
+          "genres": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "headerImage": {
+            "type": "string"
+          },
+          "isAvailable": {
+            "type": "boolean"
+          },
+          "isFree": {
+            "type": "boolean"
+          },
+          "metacriticScore": {
+            "type": "number"
+          },
+          "name": {
+            "type": "string"
+          },
+          "platforms": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "publishers": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "ratingPercent": {
+            "type": "null"
+          },
+          "ratingVotes": {
+            "type": "number"
+          },
+          "regularPrice": {
+            "type": "number"
+          },
+          "releaseDate": {
+            "type": "string"
+          },
+          "url": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    {
+      "method": "POST",
+      "path": "/steam/batch",
+      "status": 403,
+      "shape": {
+        "type": "object",
+        "keys": {
+          "error": {
+            "type": "string"
+          },
+          "message": {
+            "type": "string"
+          },
+          "statusCode": {
+            "type": "number"
+          }
+        }
+      }
+    },
+    {
+      "method": "POST",
+      "path": "/steam/sync",
+      "status": 403,
+      "shape": {
+        "type": "object",
+        "keys": {
+          "error": {
+            "type": "string"
+          },
+          "message": {
+            "type": "string"
+          },
+          "statusCode": {
+            "type": "number"
+          }
+        }
+      }
+    },
+    {
+      "method": "GET",
+      "path": "/steam/product/{appId}",
+      "status": 200,
+      "shape": {
+        "type": "object",
+        "keys": {
+          "currency": {
+            "type": "string"
+          },
+          "currentPrice": {
+            "type": "number"
+          },
+          "discountPercent": {
+            "type": "number"
+          },
+          "gameId": {
+            "type": "string"
+          },
+          "historicalLowPrice": {
+            "type": "number"
+          },
+          "id": {
+            "type": "string"
+          },
+          "isAvailable": {
+            "type": "boolean"
+          },
+          "lastCheckedAt": {
+            "type": "string"
+          },
+          "regularPrice": {
+            "type": "number"
+          },
+          "storeName": {
+            "type": "string"
+          },
+          "storeProductId": {
+            "type": "string"
+          },
+          "url": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    {
+      "method": "GET",
+      "path": "/wishlist",
+      "status": 200,
+      "shape": {
+        "type": "object",
+        "keys": {
+          "items": {
+            "type": "array",
+            "items": null
+          },
+          "limit": {
+            "type": "number"
+          },
+          "page": {
+            "type": "number"
+          },
+          "total": {
+            "type": "number"
+          }
+        }
+      }
+    },
+    {
+      "method": "POST",
+      "path": "/wishlist",
+      "status": 400,
+      "shape": {
+        "type": "object",
+        "keys": {
+          "error": {
+            "type": "string"
+          },
+          "message": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "statusCode": {
+            "type": "number"
+          }
+        }
+      }
+    },
+    {
+      "method": "DELETE",
+      "path": "/wishlist/00000000-0000-0000-0000-000000000000",
+      "status": 400,
+      "shape": {
+        "type": "object",
+        "keys": {
+          "error": {
+            "type": "string"
+          },
+          "message": {
+            "type": "string"
+          },
+          "statusCode": {
+            "type": "number"
+          }
+        }
+      }
+    },
+    {
+      "method": "DELETE",
+      "path": "/wishlist/slug/no-existe",
+      "status": 404,
+      "shape": {
+        "type": "object",
+        "keys": {
+          "error": {
+            "type": "string"
+          },
+          "message": {
+            "type": "string"
+          },
+          "statusCode": {
+            "type": "number"
+          }
+        }
+      }
+    },
+    {
+      "method": "POST",
+      "path": "/wishlist/sync/gog",
+      "status": 200,
+      "shape": {
+        "type": "object",
+        "keys": {
+          "exported": {
+            "type": "number"
+          },
+          "imported": {
+            "type": "number"
+          },
+          "message": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string"
+          },
+          "store": {
+            "type": "string"
+          }
+        }
+      }
+    }
+  ]
+}
